@@ -2,3 +2,5 @@
 corpus/
 data/
 figures/
+*.sh.o*
+*.sh.e*
