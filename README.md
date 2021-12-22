@@ -1,10 +1,10 @@
-# <font color='red'>The decentralized evolution of decentralization</font>
+# The decentralized evolution of decentralization
 
-# Description
+## Description
 
-# Installation
+## Installation
 
-# Collect the data
+## Collect the data
 For this project, we use one of the releases of the Semantic Scholar Corpus.
 
 Download corpus from
