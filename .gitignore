@@ -1,6 +1,9 @@
-*.ipynb_checkpoint
+*.ipynb_checkpoints*
 corpus/
 data/
 figures/
 *.sh.o*
 *.sh.e*
+*foo.gt.gz
+*__pycache__*
+*DS_Store*

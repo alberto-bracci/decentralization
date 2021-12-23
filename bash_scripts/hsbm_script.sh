@@ -16,6 +16,13 @@ cd ../scripts
 # python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  --do_analysis 0  -i ${SGE_TASK_ID}
 # -analysis 1 -id_list "[1,2,3,4,5,6,7,8,9,10]"
 
+
+
+qlogin
+source source
+conda activate gt
+Latora
+cd decentralization/github/scripts
 rm -r /data/Maths-LatoraLab/GDB/decentralization/github/data/2021-09-01/sample_test/0cits_5_occ_titles
 python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 1
 python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 2

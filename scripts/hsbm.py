@@ -164,82 +164,66 @@ tokenized_texts_dict = load_tokenized_texts_dict(all_docs_dict, data_folder, cho
 
     
 
-## mapping to ordered list
+# ## mapping to ordered list
 
-# Map paperId of the papers with abstracts into a range, to use as index of the lists needed in the graph_tools analysis
-try:
-    with gzip.open(f'{data_folder}paperId2index.gz', 'rb') as fp:
-        paperId2index = pickle.load(fp)
-    with gzip.open(f'{data_folder}index2paperId.gz', 'rb') as fp:
-        index2paperId = pickle.load(fp)
-except Exception as e:
-    print(e)
+# # Map paperId of the papers with abstracts into a range, to use as index of the lists needed in the graph_tools analysis
+# try:
+#     with gzip.open(f'{data_folder}paperId2index.gz', 'rb') as fp:
+#         paperId2index = pickle.load(fp)
+#     with gzip.open(f'{data_folder}index2paperId.gz', 'rb') as fp:
+#         index2paperId = pickle.load(fp)
+# except Exception as e:
+#     print(e)
 
-    paperId2index = {}
-    index2paperId = {}
-    for index,paperId in enumerate(list(tokenized_texts_dict.keys())):
-        paperId2index[paperId] = index
-        index2paperId[index] = paperId
-    with gzip.open(f'{data_folder}paperId2index.gz', 'wb') as fp:
-        pickle.dump(paperId2index,fp)
-    with gzip.open(f'{data_folder}index2paperId.gz', 'wb') as fp:
-        pickle.dump(index2paperId,fp)
-
-
-## Titles dict
-
-try:
-    with gzip.open(f'{data_folder}titles_papers_with_abstract_dict.gz', 'rb') as fp:
-        titles_dict = pickle.load(fp)
-except Exception as e:
-    print(e)
-
-    # Create dictionary of titles of all papers with an abstract
-    titles_dict = {}
-    for paper in all_docs_dict.values():
-        if chosen_text_attribute in paper and pd.notna(paper[chosen_text_attribute]) and paper[chosen_text_attribute] != '':
-            titles_dict[paper['id']] = paper['id']
-
-    with gzip.open(f'{data_folder}titles_papers_with_abstract_dict.gz', 'wb') as fp:
-        pickle.dump(titles_dict,fp)
+#     paperId2index = {}
+#     index2paperId = {}
+#     for index,paperId in enumerate(list(tokenized_texts_dict.keys())):
+#         paperId2index[paperId] = index
+#         index2paperId[index] = paperId
+#     with gzip.open(f'{data_folder}paperId2index.gz', 'wb') as fp:
+#         pickle.dump(paperId2index,fp)
+#     with gzip.open(f'{data_folder}index2paperId.gz', 'wb') as fp:
+#         pickle.dump(index2paperId,fp)
 
 
-## field dataframe (category)
+# ## Titles dict
 
-try:
-    category_title = pd.read_csv(f'{data_folder}category_title.csv')
-except Exception as e:
-    print(e)
-    rows = []
-    for i in range(len(index2paperId)):
-        _id = index2paperId[i]
-        if all_docs_dict[_id]['fieldsOfStudy'] is not None:
-            rows.append([','.join(all_docs_dict[_id]['fieldsOfStudy']), ','.join(all_docs_dict[_id]['fieldsOfStudy']), _id])
-        else:
-            rows.append(['None', 'None', _id])
+# try:
+#     with gzip.open(f'{data_folder}titles_papers_with_abstract_dict.gz', 'rb') as fp:
+#         titles_dict = pickle.load(fp)
+# except Exception as e:
+#     print(e)
 
-    category_title = pd.DataFrame(rows,columns=['category','subcategory','title'])
-    category_title.to_csv(f'{data_folder}category_title.csv',index=False)
+#     # Create dictionary of titles of all papers with an abstract
+#     titles_dict = {}
+#     for paper in all_docs_dict.values():
+#         if chosen_text_attribute in paper and pd.notna(paper[chosen_text_attribute]) and paper[chosen_text_attribute] != '':
+#             titles_dict[paper['id']] = paper['id']
 
+#     with gzip.open(f'{data_folder}titles_papers_with_abstract_dict.gz', 'wb') as fp:
+#         pickle.dump(titles_dict,fp)
+
+
+article_category = load_article_category(all_docs_dict, data_folder)
 
 ## citations edgelist (hyperlinks)
-papers_with_texts = set(list(tokenized_texts_dict.keys()))
-citations_df = load_citations_edgelist(all_docs_dict, papers_with_texts, data_folder)
-
+sorted_paper_ids_with_texts = list(tokenized_texts_dict.keys())
+citations_df = load_citations_edgelist(all_docs_dict, sorted_paper_ids_with_texts, data_folder)
 
 
 
 # graph-tool analysis
-# 
-# - texts: list of tokenized abstracts
+# The following ordered lists are required
+# - texts: list of tokenized texts
 # - titles: list of unique paperIds
-# 
 
 titles = []
 texts = []
-for i in range(len(index2paperId)):
-    titles.append(titles_dict[index2paperId[i]])
-    texts.append(tokenized_texts_dict[index2paperId[i]])
+for paper_id in sorted_paper_ids_with_texts:
+    titles.append(paper_id)
+    texts.append(tokenized_texts_dict[paper_id])
+
+
 
 
 # Remove stop words in text data
@@ -266,10 +250,6 @@ except:
     with gzip.open(f'{data_folder}edited_text_papers_with_abstract_dict.gz', 'wb') as fp:
             pickle.dump(edited_text,fp)
 
-
-article_category = {}
-for index, row in category_title.iterrows():
-    article_category[row[2]] = row[0]
 
 
 ## Filter the network
@@ -346,11 +326,22 @@ if False:#upper_bound_multiplier > 0:
 
     new_filtered_words = set(x[(x>=min_word_occurences)&(x<=upper_bound)].index.values)
 
+    
+    
+    
+    
+    
+    
+# graph-tool analysis
+# The following ordered lists are required
+# - texts: list of tokenized texts
+# - titles: list of unique paperIds
+
 titles = []
 texts = []
-for _id in ordered_papers_with_cits:
-    titles.append(titles_dict[_id])
-    texts.append(tokenized_texts_dict[_id])
+for paper_id in ordered_papers_with_cits:
+    titles.append(paper_id)
+    texts.append(tokenized_texts_dict[paper_id])
 
 
     
