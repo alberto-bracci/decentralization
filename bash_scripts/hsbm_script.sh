@@ -23,7 +23,7 @@ source source
 conda activate gt
 Latora
 cd decentralization/github/scripts
-rm -r /data/Maths-LatoraLab/GDB/decentralization/github/data/2021-09-01/sample_test/0cits_5_occ_titles
+rm -r /data/Maths-LatoraLab/GDB/decentralization/github/data/2021-09-01/sample_test/0_min_inCitations_5_min_word_occurrences_titles
 python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 1
 python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 2
 python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 3
