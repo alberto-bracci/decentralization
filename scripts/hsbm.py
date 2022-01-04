@@ -22,7 +22,6 @@ from hsbm_creation import *
 from hsbm_fit import *
 from hsbm_partitions import *
 
-# import gi
 from gi.repository import Gtk, Gdk
 import graph_tool.all as gt
 import ast # to get list comprehension from a string
@@ -163,40 +162,14 @@ citations_df = load_citations_edgelist(all_docs_dict, sorted_paper_ids_with_text
 # graph-tool analysis
 # The following ordered lists are required
 # - texts: list of tokenized texts
-# - titles: list of unique paperIds
+# - IDs: list of unique paperIds
 
-titles = []
+IDs = []
 texts = []
 for paper_id in sorted_paper_ids_with_texts:
-    titles.append(paper_id)
+    IDs.append(paper_id)
     texts.append(tokenized_texts_dict[paper_id])
 
-
-
-
-# Remove stop words in text data
-try:
-    with gzip.open(f'{results_folder}edited_text_papers_with_abstract_dict.gz', 'rb') as fp:
-        edited_text = pickle.load(fp)
-except:
-#     import nltk
-    from nltk.corpus import stopwords
-    nltk.download('stopwords')
-    from nltk.tokenize import word_tokenize
-
-    stop_words = stopwords.words('english') + stopwords.words('italian') + stopwords.words('german') + stopwords.words('french') + stopwords.words('spanish')
-    
-    edited_text = []
-    # Recall texts is list of lists of words in each document.
-    for doc in texts:
-        temp_doc = []
-        for word in doc:
-            if word not in stop_words:
-                temp_doc.append(word)
-        edited_text.append(temp_doc)
-
-    with gzip.open(f'{results_folder}edited_text_papers_with_abstract_dict.gz', 'wb') as fp:
-            pickle.dump(edited_text,fp)
 
 
 
@@ -214,66 +187,34 @@ new_filtered_words = set(x[x>=min_word_occurences].index.values)
 print('Number of new filtered words', len(new_filtered_words),flush=True)
 
 
-import nltk
-from nltk.corpus import stopwords
-nltk.download('stopwords')
-from nltk.tokenize import word_tokenize
-
-stop_words = set(stopwords.words('english') + stopwords.words('italian') + stopwords.words('german') + stopwords.words('french') + stopwords.words('spanish'))
-# update stopwords list with manually annotated list 
-#     manual_stopwords = pd.read_csv(f'{results_folder}stop_words_manual.csv')
-#     manual_stopwords = list(manual_stopwords.loc[manual_stopwords.cut == 1].word.values)
-#     stop_words.update(manual_stopwords)
-
-
-if False:#upper_bound_multiplier > 0:
-    ## added upper bound on occurrences too
-    number_of_hyperling_edges = len(citations_df)*upper_bound_multiplier
-
-    to_count_words_in_doc_df = pd.DataFrame(data = {'paperId': ordered_papers_with_cits, 'word':[tokenized_texts_dict[x] for x in ordered_papers_with_cits]})
-    to_count_words_in_doc_df = to_count_words_in_doc_df.explode('word')
-    x = to_count_words_in_doc_df.groupby('word').paperId.nunique()
-
-    tmp = x[(x>=min_word_occurences)&(~np.isin(x.index,stop_words))].sort_values(ascending=True)
-    for i in range(len(tmp),0,-1):
-        if tmp.iloc[:i].sum() <= number_of_hyperling_edges:
-            print(i*100/len(tmp),tmp.iloc[:i].sum())
-            percentile = i*100/len(tmp)
-            break
-    upper_bound = np.percentile(tmp.values,percentile)
-    print('final number of edges:', tmp[tmp<=upper_bound].sum())
-
-    new_filtered_words = set(x[(x>=min_word_occurences)&(x<=upper_bound)].index.values)
-
-    
-    
-    
     
     
     
 # graph-tool analysis
 # The following ordered lists are required
 # - texts: list of tokenized texts
-# - titles: list of unique paperIds
+# - IDs: list of unique paperIds
 
-titles = []
+IDs = []
 texts = []
 for paper_id in ordered_papers_with_cits:
-    titles.append(paper_id)
+    IDs.append(paper_id)
     texts.append(tokenized_texts_dict[paper_id])
 
 
-    
+
 # Remove stop words in text data
 try:
-    with gzip.open(f'{results_folder}edited_text_papers_with_abstract{filter_label}.gz', 'rb') as fp:
-        edited_text = pickle.load(fp)
-    with gzip.open(f'{results_folder}titles_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'rb') as fp:
-        titles,texts,edited_text = pickle.load(fp)
+    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'rb') as fp:
+        IDs,texts,edited_text = pickle.load(fp)
 except:
-    
-
     edited_text = []
+    from nltk.corpus import stopwords
+    import nltk
+    nltk.download('stopwords')
+
+    stop_words = stopwords.words('english') + stopwords.words('italian') + stopwords.words('german') + stopwords.words('french') + stopwords.words('spanish')
+    
     # Recall texts is list of lists of words in each document.
     for doc in texts:
         temp_doc = []
@@ -285,8 +226,8 @@ except:
     with gzip.open(f'{results_folder}edited_text_papers_with_abstract{filter_label}.gz', 'wb') as fp:
             pickle.dump(edited_text,fp)
 
-    with gzip.open(f'{results_folder}titles_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'wb') as fp:
-            pickle.dump((titles,texts,edited_text),fp)
+    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'wb') as fp:
+            pickle.dump((IDs,texts,edited_text),fp)
     print('Dumped edited texts')
 
 ## Create gt object
@@ -371,7 +312,7 @@ if not do_analysis:
     except:
         print('Fit and calibration files not found, starting fit.',flush=True)
         start = datetime.now()
-        hyperlink_text_hsbm_states =  fit_hyperlink_text_hsbm(edited_text, titles, hyperlinks, N_iter, results_folder, filename = f'results_fit_greedy{filter_label}_tmp.gz', 
+        hyperlink_text_hsbm_states =  fit_hyperlink_text_hsbm(edited_text, IDs, hyperlinks, N_iter, results_folder, filename = f'results_fit_greedy{filter_label}_tmp.gz', 
                                                               SEED_NUM=SEED_NUM, number_iterations_MC_equilibrate = number_iterations_MC_equilibrate)
         end = datetime.now()
         time_duration = end - start
@@ -527,7 +468,7 @@ def get_word_type_blocks(h_t_state, h_t_graph, level):
         if h_t_graph.vp['kind'][v] == 1:
             partition[v] = block_SBM_partitions[h_t_graph.vp.name[v]]
     # IGNORE FIRST 120 NODES (there are document nodes)
-    partitions.append(list(h_t_graph.vp.partition)[len(titles):])
+    partitions.append(list(h_t_graph.vp.partition)[len(IDs):])
     num_of_groups.append(len(set(partitions[0])))
     entropies.append(h_t_state.entropy())
     return (partitions, num_of_groups, entropies)
