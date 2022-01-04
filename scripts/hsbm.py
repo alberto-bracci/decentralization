@@ -64,6 +64,12 @@ parser.add_argument('-id_list', '--id_list_for_analysis', type=str,
     help='list of ids for which we do the analysis, list written as string (with brackets, see default), and then converted to list in the script. Needs to contain at least two elements. [default "[1,2]"]',
     default='[1,2]')
 
+parser.add_argument('-stop', '--stop_at_fit', type=int,
+    help='If stop_at_fit is 1, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate. [default 0]',
+    default=0)
+
+
+
 
 arguments = parser.parse_args()
 
@@ -75,7 +81,7 @@ use_titles = arguments.use_titles == 1
 do_analysis = arguments.do_analysis
 _id_list_string = arguments.id_list_for_analysis
 _id_list = ast.literal_eval(_id_list_string)
-
+stop_at_fit = arguments.stop_at_fit == 1
 
 
 
@@ -175,7 +181,7 @@ for paper_id in sorted_paper_ids_with_texts:
 
 ## Filter the network
 citations_df, ordered_papers_with_cits = load_filtered_papers_with_cits(all_docs_dict, tokenized_texts_dict, results_folder, min_inCitations=min_inCitations)
-
+print(f"number of document-document links: {len(citations_df)}",flush=True)
 # words appearing in at least two of these articles
 
 to_count_words_in_doc_df = pd.DataFrame(data = {'paperId': ordered_papers_with_cits, 'word':[tokenized_texts_dict[x] for x in ordered_papers_with_cits]})
@@ -229,6 +235,8 @@ except:
     with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'wb') as fp:
             pickle.dump((IDs,texts,edited_text),fp)
     print('Dumped edited texts')
+
+print(f"number of word-document links: {np.sum([len(set(x)) for x in edited_text])}",flush=True)
 
 ## Create gt object
 if os.path.exists(f'{results_folder}gt_network{filter_label}.gt'):
@@ -312,11 +320,22 @@ if not do_analysis:
     except:
         print('Fit and calibration files not found, starting fit.',flush=True)
         start = datetime.now()
-        hyperlink_text_hsbm_states =  fit_hyperlink_text_hsbm(edited_text, IDs, hyperlinks, N_iter, results_folder, filename = f'results_fit_greedy{filter_label}_tmp.gz', 
-                                                              SEED_NUM=SEED_NUM, number_iterations_MC_equilibrate = number_iterations_MC_equilibrate)
+        
+        hyperlink_text_hsbm_states =  equilibrate_hyperlink_text_hsbm(edited_text, 
+                                                                      IDs, 
+                                                                      hyperlinks, 
+                                                                      N_iter, 
+                                                                      results_folder, 
+                                                                      stop_at_fit = stop_at_fit, 
+                                                                      filename = f'results_fit_greedy{filter_label}_tmp.gz', 
+                                                                      SEED_NUM=SEED_NUM, 
+                                                                      number_iterations_MC_equilibrate = number_iterations_MC_equilibrate)
+        if stop_at_fit == True:
+            exit()
+            
         end = datetime.now()
         time_duration = end - start
-
+        
         with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,end-start),fp)
 
