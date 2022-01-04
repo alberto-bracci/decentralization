@@ -28,13 +28,17 @@ def fit_hyperlink_text_hsbm(edited_text,
                             hyperlinks, 
                             N_iter, 
                             results_folder, 
-                            filename = f'results_fit_greedy_tmp.gz', 
+                            filename_fit = f'results_fit_greedy_tmp.gz', 
                             SEED_NUM = 1, 
+                            stop_at_fit = False,
                             number_iterations_MC_equilibrate = 5000, 
                            ):
     '''
     Fit N_iter iterations of doc-network sbm on dataset through agglomerative heuristic
     and simulated annealing.
+    
+    If stop_at_fit is True, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate.
+    If the temporary file is present, it is loaded by default.
     '''
     hyperlink_text_hsbm_post = []
 
@@ -44,7 +48,7 @@ def fit_hyperlink_text_hsbm(edited_text,
         
         try: 
             print('Loading temporary results from previous run...',flush=True)
-            with gzip.open(f'{results_folder}{filename}', 'rb') as fp:
+            with gzip.open(f'{results_folder}{filename_fit}', 'rb') as fp:
                 hyperlink_text_hsbm,tmp = pickle.load(fp)
         except Exception as e:
             print(e)
@@ -57,9 +61,12 @@ def fit_hyperlink_text_hsbm(edited_text,
             hyperlink_text_hsbm.fit(verbose=False)
             end = datetime.now()
             print('fit took: ',end - start,flush=True)
-            with gzip.open(f'{results_folder}{filename}', 'wb') as fp:
+            with gzip.open(f'{results_folder}{filename_fit}', 'wb') as fp:
                 pickle.dump((hyperlink_text_hsbm,end-start),fp)
-            
+        
+        if stop_at_fit == True:
+            return None
+        
         # Retrieve state from simulated annealing hSBM
         hyperlink_text_hsbm_post_state = run_multiflip_greedy_hsbm(hyperlink_text_hsbm, number_iterations_MC_equilibrate)
 
