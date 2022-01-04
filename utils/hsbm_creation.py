@@ -151,6 +151,7 @@ def filter_papers_with_cits(all_docs_dict,
             papers_with_texts: set or list of paper_ids that have a non empty text (list of strings)
             results_folder: path to directory of the results_folder where to save citations_edgelist (str, valid path)
             file_name: file name where to load/save citations_edgelist in results_folder (str, default: "citations_edgelist.csv")
+            min_inCitations: minimum number of inCitations to use during filtering (int, default: 0)
         
         Returns:
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link
@@ -180,7 +181,7 @@ def load_filtered_papers_with_cits(all_docs_dict,
                                    min_inCitations=0, 
                                   ):
     '''
-        Loads or creates&saves the dataframe citations_df with the list of edges of citations between papers within the given dataset.
+        Loads or creates&saves the dataframe citations_df with the list of edges of citations between papers within the given dataset, filtering only papers in the citation network. 
         It considers only the papers that are cited or get cited once (in total). It also filters only the papers with at least min_inCitations inCitations.
         
         Args:
@@ -188,6 +189,8 @@ def load_filtered_papers_with_cits(all_docs_dict,
             papers_with_texts: set or list of paper_ids that have a non empty text (list of strings)
             results_folder: path to directory of the results_folder where to save citations_edgelist (str, valid path)
             file_name: file name where to load/save citations_edgelist in results_folder (str, default: "citations_edgelist.csv")
+            file_name_citations_df_no_filter: file name where to load citations_edgelist_all in results_folder (str, default: "citations_edgelist.csv")
+            min_inCitations: minimum number of inCitations to use during filtering (int, default: 0)
         
         Returns:
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link
@@ -217,7 +220,7 @@ def load_filtered_papers_with_cits(all_docs_dict,
 def create_article_category(all_docs_dict, 
                            ):
     '''
-        Creates the dataframe citations_df with the list of edges of citations between papers within the given dataset.
+        Creates the dataframe article_category with the fields of study of each paper in the given dataset.
         
         Args:
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
@@ -240,7 +243,7 @@ def load_article_category(all_docs_dict,
                           file_name = "article_category.pkl.gz", 
                          ):
     '''
-        Loads or creates&saves a dictionary with all the fields of study.
+        Loads or creates&saves a dictionary with the categories of each doc.
         
         Args:
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
