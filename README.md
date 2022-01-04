@@ -30,10 +30,10 @@ After this, selected the keywords you want to use to create your dataset, run th
 
 
 ## TODO list
-1. add docstrings to functions in hsbm_creation.py
+1. ~add docstrings to functions in hsbm_creation.py~
 1. go through all functions in hsbm_fit.py in detail
 1. go through all functions in hsbm_partitions.py in detail
-1. clean edited_texts part in hsbm.py
+1. ~clean edited_texts part in hsbm.py~
 1. go through all analysis part in hsbm.py
 1. go through notebook semschol_graph_tool_analysis for plots/analysis
 1. script cartella da dare da shell, non in script
