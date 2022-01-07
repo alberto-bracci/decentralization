@@ -24,6 +24,7 @@ from hsbm_partitions import *
 
 from gi.repository import Gtk, Gdk
 import graph_tool.all as gt
+import graph_tool as graph_tool
 import ast # to get list comprehension from a string
 
 
@@ -215,7 +216,7 @@ for paper_id in ordered_papers_with_cits:
 
 # Remove stop words in text data
 try:
-    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'rb') as fp:
+    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.pkl.gz', 'rb') as fp:
         IDs,texts,edited_text = pickle.load(fp)
 except:
     edited_text = []
@@ -233,10 +234,10 @@ except:
                 temp_doc.append(word)
         edited_text.append(temp_doc)
 
-    with gzip.open(f'{results_folder}edited_text_papers_with_abstract{filter_label}.gz', 'wb') as fp:
+    with gzip.open(f'{results_folder}edited_text_papers_with_abstract{filter_label}.pkl.gz', 'wb') as fp:
             pickle.dump(edited_text,fp)
 
-    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.gz', 'wb') as fp:
+    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.pkl.gz', 'wb') as fp:
             pickle.dump((IDs,texts,edited_text),fp)
     print('Dumped edited texts')
 
@@ -301,6 +302,47 @@ else:
     hyperlink_g.save(f'{results_folder}gt_network{filter_label}.gt')
 
 
+    
+    
+# ACHTUNG: h_t_doc_consensus is (for some reason) not ordered like edited_text, 
+# but with the same order as hyperlink_g.vp['name']... 
+ordered_paper_ids = list(hyperlink_g.vp['name'])
+ordered_edited_texts = [tokenized_texts_dict[paper_id] for paper_id in ordered_paper_ids]
+    
+    
+# COMPUTE CENTRALITIES
+try:
+    with gzip.open(f'{results_folder}/hyperlink_g_centralities{filter_label}.pkl.gz','rb') as fp:
+        centralities = pickle.load(fp)
+except:
+    print("Calculating centralities...")
+    id2NoCits = {x: len(all_docs_dict[x]['inCitations']) for x in all_docs_dict.keys()}
+
+    centralities = {}
+    centralities['citations_overall'] = np.vectorize(id2NoCits.get)(ordered_paper_ids)
+    print("Done citations_overall centrality", flush=True)
+    paper_with_cits = citations_df['from'].value_counts().index.values
+    paper_without_cits = set(ordered_paper_ids).difference(set(paper_with_cits))
+    centralities['in_degree'] = citations_df['from'].value_counts().append(pd.Series(data = np.zeros(len(paper_without_cits)),index=paper_without_cits)).loc[ordered_paper_ids].values
+    print("Done in_degree centrality", flush=True)
+    if len(ordered_paper_ids) > 1000:
+        centralities['eigenvector'] = graph_tool.centrality.eigenvector(hyperlink_g)[1]._get_data()
+        print("Done eigenvector centrality", flush=True)
+    centralities['betweenness'] = graph_tool.centrality.betweenness(hyperlink_g)[0]._get_data()
+    print("Done betweenness centrality", flush=True)
+    centralities['closeness'] = graph_tool.centrality.closeness(hyperlink_g)._get_data()
+    print("Done closeness centrality", flush=True)
+    centralities['pagerank'] = graph_tool.centrality.pagerank(hyperlink_g)._get_data()
+    print("Done pagerank centrality", flush=True)
+    centralities['katz'] = graph_tool.centrality.katz(hyperlink_g)._get_data()
+    print("Done katz centrality", flush=True)
+
+    with gzip.open(f'{results_folder}/hyperlink_g_centralities{filter_label}.pkl.gz','wb') as fp:
+        pickle.dump(centralities,fp)
+
+    
+    
+    
 if do_only_prep:
     exit()
 
@@ -319,7 +361,7 @@ if not do_analysis:
         ################ ACHTUNG CHANGING FOLDER TO SUBFOLDER HERE!!!!!!!! ################
         results_folder = results_folder_iteration
         os.makedirs(results_folder, exist_ok=True)
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.gz','rb') as fp:
+        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
             hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         print(f'Fit and calibration already done (in {time_duration}), loaded.',flush=True)
         
@@ -342,7 +384,7 @@ if not do_analysis:
         end = datetime.now()
         time_duration = end - start
         
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.gz','wb') as fp:
+        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,end-start),fp)
 
         print('Time duration algorithm',time_duration,flush=True)
@@ -356,7 +398,7 @@ else:
         start = datetime.now()
         print('Doing analysis, not fit',flush = True)
         print('Loading list of iterations', _id_list_string, flush=True)
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.gz','rb') as fp:
+        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
             hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         print('Average time duration algorithm',time_duration,flush=True)
         end = datetime.now()
@@ -366,21 +408,21 @@ else:
         time_duration_list = []
         results_folder_iteration = os.path.join(results_folder, f'ID_{_id_list[0]}_no_iterMC_{number_iterations_MC_equilibrate}/')
         
-        with gzip.open(f'{results_folder_iteration}/results_fit_greedy{filter_label}.gz','rb') as fp:
+        with gzip.open(f'{results_folder_iteration}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
                     hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         time_duration_list.append(time_duration)
         print('Loaded %d'%_id_list[0],flush = True)
 
         for _id in _id_list[1:]:
             results_folder_iteration = os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/')
-            with gzip.open(f'{results_folder_iteration}/results_fit_greedy{filter_label}.gz','rb') as fp:
+            with gzip.open(f'{results_folder_iteration}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
     #                 hyperlink_text_hsbm_states.append(pickle.load(fp)[0])
                 hyperlink_text_hsbm_state,time_duration = pickle.load(fp)
                 hyperlink_text_hsbm_states += hyperlink_text_hsbm_state
             time_duration_list.append(time_duration)
             print('Loaded %d'%_id,flush = True)
         time_duration = np.mean(time_duration_list)
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.gz','wb') as fp:
+        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,time_duration),fp)
         end = datetime.now()
         print('Average time duration algorithm',time_duration,flush=True)
@@ -396,7 +438,7 @@ print('\nRetrieve partitions',flush=True)
 
 # Retrieve partitions assigned to documents in each run. Also save index of highest non-trivial level.
 try:
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions{filter_label}.gz','rb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions{filter_label}.pkl.gz','rb') as fp:
         hyperlink_text_hsbm_partitions, levels = pickle.load(fp)
     print('Loaded', flush=True)
 except:
@@ -407,7 +449,7 @@ except:
 
 #     print('number of partitions',len(set(hyperlink_text_hsbm_partitions[0])),flush=True)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions{filter_label}.gz','wb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hyperlink_text_hsbm_partitions, levels),fp)
 
 
@@ -417,7 +459,7 @@ except:
 
 print('\nConsensus Partition',flush=True)
 try:
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all{filter_label}.gz','rb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','rb') as fp:
         hyperlink_text_hsbm_partitions_by_level,duration = pickle.load(fp)
     print('Loaded', flush=True)
 except:
@@ -448,10 +490,10 @@ except:
     end = datetime.now()
     print(end - start)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all{filter_label}.gz','wb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hyperlink_text_hsbm_partitions_by_level,end-start),fp)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all_info{filter_label}.gz','wb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all_info{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hyperlink_text_hsbm_partitions_by_level_info,end-start),fp)
 
 # # THIS IS USELESS HERE
@@ -513,7 +555,7 @@ def get_word_type_blocks(h_t_state, h_t_graph, level):
 
 # for each iteration get word groups for all non-trivial level
 try:
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_words_all{filter_label}.gz','rb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','rb') as fp:
         H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = pickle.load(fp)
     print('Loaded', flush=True)
 except:
@@ -530,7 +572,7 @@ except:
             H_T_word_hsbm_partitions_by_level[l].append(word_partitions[0])
             H_T_word_hsbm_num_groups_by_level[l].append(num_word_groups)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_words_all{filter_label}.gz','wb') as fp:
+    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level),fp)
 
     end = datetime.now()
@@ -643,6 +685,9 @@ for l in list(hyperlink_text_hsbm_partitions_by_level.keys()):
         
         
 print('Calculating summary', flush=True)
+
+highest_non_trivial_level = max(list(h_t_doc_consensus_by_level.keys()))
+
 # h_t_word_consensus_by_level = {}
 h_t_consensus_summary_by_level = {}
 
@@ -740,7 +785,7 @@ for l in h_t_doc_consensus_by_level.keys():
     h_t_consensus_summary_by_level[l]['p_tw_d'] = p_tw_d # Topic proportions over documents
     h_t_consensus_summary_by_level[l]['p_w_tw'] = p_w_tw # Topic distribution over words
 
-with gzip.open(f'{results_folder}/results_fit_greedy_partitions_consensus_all{filter_label}.gz','wb') as fp:
+with gzip.open(f'{results_folder}/results_fit_greedy_partitions_consensus_all{filter_label}.pkl.gz','wb') as fp:
     pickle.dump((h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level),fp)
     
 end = datetime.now()
@@ -750,10 +795,6 @@ print('Time duration',end-start,flush=True)
 
 
 g_words = [ hyperlink_text_hsbm_states[0].g.vp['name'][v] for v in  hyperlink_text_hsbm_states[0].g.vertices() if hyperlink_text_hsbm_states[0].g.vp['kind'][v]==1   ]
-
-
-# THIS IS ONLY FOR MAXIMUM LEVEL, USELESS
-# dict_groups = get_topics_h_t_consensus_model(h_t_consensus_summary, g_words, n=1000000)
 dict_groups_by_level = {l:get_topics_h_t_consensus_model(h_t_consensus_summary_by_level[l], g_words, n=1000000) for l in h_t_doc_consensus_by_level.keys()}
 
 
@@ -793,10 +834,6 @@ for l in h_t_doc_consensus_by_level.keys():
 
 # ## Topic frequency in clusters
 print('Mixture proportion...',flush=True)
-# ACHTUNG: h_t_doc_consensus is (for some reason) not ordered like edited_text, 
-# but with the same order as hyperlink_g.vp['name']... 
-ordered_paper_ids = list(hyperlink_g.vp['name'])
-ordered_edited_texts = [tokenized_texts_dict[paper_id] for paper_id in ordered_paper_ids]
 
 
 # THIS IS ONLY FOR MAXIMUM LEVEL, USELESS
@@ -810,7 +847,7 @@ for l in h_t_doc_consensus_by_level.keys():
     mixture_proportion_by_level[l], normalized_mixture_proportion_by_level[l], avg_topic_frequency_by_level[l] = topic_mixture_proportion(dict_groups_by_level[l],ordered_edited_texts,h_t_doc_consensus_by_level[l])
 
 
-with gzip.open(f'{results_folder}/results_fit_greedy_topic_frequency_all{filter_label}.gz','wb') as fp:
+with gzip.open(f'{results_folder}/results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level),fp)
 
 
@@ -818,7 +855,8 @@ with gzip.open(f'{results_folder}/results_fit_greedy_topic_frequency_all{filter_
 
 hierarchy_docs, hierarchy_words = {}, {}
 
-for l in range(max(list(h_t_doc_consensus_by_level.keys())),0,-1):
+
+for l in range(highest_non_trivial_level,0,-1):
 
     tmp1_docs, tmp2_docs = h_t_doc_consensus_by_level[l], h_t_doc_consensus_by_level[l-1]
     tmp1_words, tmp2_words = h_t_word_consensus_by_level[l], h_t_word_consensus_by_level[l-1]
@@ -832,16 +870,22 @@ for l in range(max(list(h_t_doc_consensus_by_level.keys())),0,-1):
     for i in range(len(tmp1_words)):
         hierarchy_words[l][tmp1_words[i]].add(tmp2_words[i])
 
-with gzip.open(f'{results_folder}/results_fit_greedy_topic_hierarchy_all{filter_label}.gz','wb') as fp:
+# Add higher layer of hierarchy words so that we have a unique root
+hierarchy_words[highest_non_trivial_level+1] = {0:set(list(hierarchy_words[highest_non_trivial_level].keys()))}
+
+# Add higher layer of hierarchy docs so that we have a unique root
+hierarchy_docs[highest_non_trivial_level+1] = {0:set(list(hierarchy_docs[highest_non_trivial_level].keys()))}
+
+with gzip.open(f'{results_folder}/results_fit_greedy_topic_hierarchy_all{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hierarchy_docs,hierarchy_words),fp)
 
 try:
-    print('hierarchy words at non trivial level:', hierarchy_words[min(levels)],flush=True)
+    print('hierarchy words at non trivial level:', hierarchy_words[highest_non_trivial_level],flush=True)
 except:
     print('There is only one level, so hierarchy_words is an empty dictionary.')
     
 try:
-    print('hierarchy docs at non trivial level:', hierarchy_docs[min(levels)],flush=True)
+    print('hierarchy docs at non trivial level:', hierarchy_docs[highest_non_trivial_level],flush=True)
 except:
     print('There is only one level, so hierarchy_docs is an empty dictionary.')
 
@@ -852,5 +896,335 @@ except:
     
     
     
-# COMPUTE CENTRALITIES
+# Normalized mixture proportion by different level partition and topic
 
+try:
+    with gzip.open(os.path.join(results_folder, f"results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz"),"rb") as fp:
+        topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = pickle.load(fp)
+except FileNotFoundError:
+    mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = {}, {}, {}
+    for level_partition in range(highest_non_trivial_level + 1):
+        mixture_proportion_by_level_partition_by_level_topics[level_partition], normalized_mixture_proportion_by_level_partition_by_level_topics[level_partition], avg_topic_frequency_by_level_partition_by_level_topics[level_partition] = {}, {}, {}
+        for l in range(highest_non_trivial_level + 1):
+            mixture_proportion_by_level_partition_by_level_topics[level_partition][l], normalized_mixture_proportion_by_level_partition_by_level_topics[level_partition][l], avg_topic_frequency_by_level_partition_by_level_topics[level_partition][l] = \
+                topic_mixture_proportion(dict_groups_by_level[l],ordered_edited_texts,h_t_doc_consensus_by_level[level_partition])
+
+    with gzip.open(os.path.join(results_folder, f"results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz"),"wb") as fp:
+        pickle.dump((topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics),fp)
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+# KNOWLEDGE FLOW
+all_docs = list(all_docs_dict.values())
+
+paper2field = {x['id']:x['fieldsOfStudy'] for x in all_docs if 'id' in x and 'fieldsOfStudy' in x}
+
+# all_docs_dict[paper]['ye_partition'] is a list of all the fields of the paper!!
+
+# ACHTUNG PUT TO TRUE ONLY ONE!!
+partition_first_field = False # Deprecated
+partition_exploded = False
+gt_partition = True
+
+for gt_partition_level in range(highest_non_trivial_level + 1):
+
+    if partition_first_field:
+        partition_used = "original_partition_first_field"
+        # ACHTUNG here we assign the partition, can be changed
+        # THIS IS NOW DEPRECATED
+        for paper in all_docs_dict:
+            if 'fieldsOfStudy' in all_docs_dict[paper] and all_docs_dict[paper]['fieldsOfStudy'] is not None and len(all_docs_dict[paper]['fieldsOfStudy']) > 0:
+                all_docs_dict[paper]['ye_partition'] = all_docs_dict[paper]['fieldsOfStudy'][0]
+            elif 'fieldsOfStudy' in all_docs_dict[paper]: 
+                all_docs_dict[paper]['ye_partition'] = None
+
+        all_partitions = set([x['ye_partition'] for x in all_docs_dict.values()])
+        ye_partition = {field:set() for field in all_partitions}
+
+        for paper in all_docs_dict:
+            if 'ye_partition' in all_docs_dict[paper]:
+                ye_partition[all_docs_dict[paper]['ye_partition']].add(paper)
+
+
+    if partition_exploded:
+        partition_used = "original_partition_exploded"
+        # ACHTUNG: papers may be assigned to multiple fields
+
+        for paper in all_docs_dict:
+            if 'fieldsOfStudy' in all_docs_dict[paper] and all_docs_dict[paper]['fieldsOfStudy'] is not None and len(all_docs_dict[paper]['fieldsOfStudy']) > 0:
+                all_docs_dict[paper]['ye_partition'] = all_docs_dict[paper]['fieldsOfStudy']
+            elif 'fieldsOfStudy' in all_docs_dict[paper]: 
+                all_docs_dict[paper]['ye_partition'] = []
+
+
+        all_partitions = set([x for y in paper2field.values() for x in y])
+        ye_partition = {field:set() for field in all_partitions}
+
+        for paper in all_docs:
+            for field in paper['fieldsOfStudy']:
+                ye_partition[field].add(paper['id'])
+
+
+    if gt_partition:
+        partition_used = "gt_partition_lev_%d"%(gt_partition_level)
+        hyperlink_text_consensus_partitions_by_level = {}
+        for l in h_t_doc_consensus_by_level.keys():
+            print(l,flush=True)
+            hyperlink_text_consensus_partitions_by_level[l] = h_t_doc_consensus_by_level[l]
+
+
+        name2partition = {}
+        for i,name in enumerate(hyperlink_g.vp["name"]):
+            name2partition[name] = hyperlink_text_consensus_partitions_by_level[gt_partition_level][i]
+        paper_ids_with_partition = set(name2partition.keys())
+
+        doc_partition_remapping = {}
+        doc_partition_remapping_inverse = {}
+        lista1 = []
+        for paper in ordered_paper_ids:
+            lista1.append(name2partition[paper])
+        lista2 = hyperlink_text_consensus_partitions_by_level[gt_partition_level]
+        for part1, part2 in set(list(zip(lista1,lista2))):
+            if part1 in doc_partition_remapping:
+                print("THERE ARE MULTIPLE INSTANCES... ERROR")
+                break
+            else:
+                doc_partition_remapping[part1] = part2  
+                doc_partition_remapping_inverse[part2] = part1
+
+        labelling_partition_remapping_by_level = {gt_partition_level:{x:str(x) for x in doc_partition_remapping.values()}}
+        labelling_partition_remapping_by_level_inverse = {level:{y:x for x,y in labelling_partition_remapping_by_level[level].items()} for level in labelling_partition_remapping_by_level}
+
+
+        print("Assigning partition field in docs")
+
+        for paper_id in all_docs_dict:
+            if paper_id in paper_ids_with_partition:
+                all_docs_dict[paper_id]['ye_partition'] = [labelling_partition_remapping_by_level[gt_partition_level][doc_partition_remapping[name2partition[paper_id]]]]
+            else: 
+                all_docs_dict[paper_id]['ye_partition'] = []
+
+
+        all_partitions = set([x for x in labelling_partition_remapping_by_level[gt_partition_level].values()])
+        all_partitions = list(all_partitions)
+        all_partitions.sort()
+    #     all_partitions = set(all_partitions)
+        ye_partition = {field:set() for field in all_partitions}
+
+        for paper in all_docs:
+            for field in paper['ye_partition']:
+                ye_partition[field].add(paper['id'])
+
+
+    # count citations between fields and between different times
+
+    years_with_none = set([x['year'] for x in all_docs_dict.values()])
+
+    # citation_count_per_field_in_time = {partition: {partition: {year: {year: 0 for year in years_with_none} for year in years_with_none} for partition in all_partitions} for partition in all_partitions}
+    with gzip.open(dataset_path + "../" +"no_papers_in_fields_by_year.pkl.gz","rb") as fp:
+        papers_per_year_per_field = pickle.load(fp)
+    years = sorted([x for x in papers_per_year_per_field.keys() if x is not None and x > 1500])
+
+    knowledge_units_count_per_field_in_time = {partition: {partition: {year: {year: 0 for year in years} for year in years} for partition in all_partitions} for partition in all_partitions}
+
+
+    all_papers_ids = set([x["id"] for x in all_docs])
+
+    # paper2 cites paper1 
+    # so citation_count_per_field_in_time is ordered like partition_from - partition_to - year_from - year_to
+
+    # ordered like knowledge_units_count_per_field_in_time[cited_field][citing_field][cited_year][citing_year]
+
+    N_partitions = len(ye_partition.keys())
+
+    for paper1 in all_docs:
+        citing_papers = paper1['inCitations']
+        for paper2_id in set(citing_papers).intersection(all_papers_ids):
+            paper2 = all_docs_dict[paper2_id]
+            partitions1 = paper1['ye_partition']
+            partitions2 = paper2['ye_partition']
+            if len(partitions1)>0 and len(partitions2)>0:
+                for partition1 in partitions1:
+                    for partition2 in partitions2:
+                        year1 = paper1['year']
+                        year2 = paper2['year']
+                        if year1 is not None and year2 is not None:
+                            knowledge_units_count_per_field_in_time[partition1][partition2][year1][year2] += (1/len(partitions1))*(1/len(partitions2))
+
+    with gzip.open(os.path.join(results_folder, f"knowledge_units_count_per_field_in_time_{partition_used}.pkl.gz"),"wb") as fp:
+        pickle.dump(knowledge_units_count_per_field_in_time,fp)
+
+    field_units_per_year = {year:{field:0 for field in all_partitions} for year in years}
+
+    for paper in all_docs:
+        if 'year' in paper and paper['year'] is not None and len(paper['ye_partition']) > 0:
+            for field in paper['ye_partition']:
+                field_units_per_year[paper['year']][field] += 1/len(paper['ye_partition'])
+
+
+                
+    def normalize_citations_count(citing_field,cited_field,citing_year,cited_year):
+        # normalize citation_count_per_field using YE's prescription (null model)
+
+        # fraction of knowledge units received by citing field in citing_year from cited field in cited years over all knowledge units received by citing field in citing years
+        numerator = knowledge_units_count_per_field_in_time[cited_field][citing_field][cited_year][citing_year]/np.sum([knowledge_units_count_per_field_in_time[x][citing_field][cited_year][citing_year] for x in knowledge_units_count_per_field_in_time.keys()])
+
+        # fraction of papers produced by cited field in cited year over all papers produced in cited years
+        denominator = field_units_per_year[cited_year][cited_field]/np.sum([field_units_per_year[cited_year][field]for field in all_partitions])
+
+        return numerator/denominator if denominator>0 and pd.notna(numerator) else 0
+
+
+    knowledge_flow_normalized_per_field_in_time = {partition: {partition: {year: {year: 0 for year in years} for year in years} for partition in all_partitions} for partition in all_partitions}
+
+    # NOTE: we iteratote over years_with_none because it only has years where a decentralization papers has been published, all other years are already initialized with 0
+    for cited_field in all_partitions:
+        for citing_field in all_partitions:
+            for cited_year in years_with_none - {None}:
+                for citing_year in years_with_none - {None}:
+                    if citing_year < cited_year:
+                        continue
+                    knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year][citing_year] = normalize_citations_count(citing_field,cited_field,citing_year,cited_year)
+
+    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_in_time_{partition_used}.pkl.gz"),"wb") as fp:
+        pickle.dump(knowledge_flow_normalized_per_field_in_time,fp)
+
+    # TODO: average over time window of field knowledge flow
+    # it's the simple mean of the knowledge flow over the considered time window for the cited years given a citing year (and then you average this over a window of citing years)
+
+    def time_window_average_knowledge_flow(citing_field,cited_field,citing_years,cited_years):
+
+        tmp = []
+        for cited_year in cited_years:
+            for citing_year in citing_years:
+                if citing_year>cited_year:
+                    tmp.append(knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year][citing_year])
+        return np.nanmean(tmp)
+
+    time_window_size_range = [5,10]
+    last_year = 2021
+    first_year = 1962
+
+    knowledge_flow_normalized_per_field_per_time_window = {}
+    for time_window_size in time_window_size_range:
+        tmp = knowledge_flow_normalized_per_field_per_time_window[time_window_size] = {}
+        for final_year in range(last_year,first_year,-time_window_size):
+            tmp2 = tmp[(final_year-time_window_size+1,final_year)] = {}
+    #         for final_year2 in range(final_year,last_year,time_window_size):
+            for final_year2 in range(final_year,last_year+1,time_window_size):
+                tmp3 = tmp2[(final_year2+1-time_window_size,final_year2)] = {}
+                for partition in all_partitions:
+                    tmp3[partition] = {partition: 0 for partition in all_partitions} 
+
+    for time_window_size in knowledge_flow_normalized_per_field_per_time_window.keys():
+        for cited_time_window in knowledge_flow_normalized_per_field_per_time_window[time_window_size].keys():
+            for citing_time_window,tmp_dict in knowledge_flow_normalized_per_field_per_time_window[time_window_size][cited_time_window].items():
+                for cited_field in all_partitions:
+                    for citing_field in all_partitions:
+                        tmp_dict[cited_field][citing_field] = time_window_average_knowledge_flow(citing_field,cited_field,range(citing_time_window[0],citing_time_window[1]+1),range(cited_time_window[0],cited_time_window[1]+1))
+
+    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_{partition_used}.pkl.gz"),"wb") as fp:
+        pickle.dump(knowledge_flow_normalized_per_field_per_time_window,fp)
+
+
+
+    # TODO: average over time window of field knowledge flow
+    # it's the simple mean of the knowledge flow over the considered time window for the cited years given a citing year (and then you average this over a window of citing years)
+
+    def time_window_average_knowledge_flow_to_future(citing_field,cited_field,cited_years):
+
+        tmp = []
+        for cited_year in cited_years:
+            for citing_year in range(cited_year+1, 2022):
+                if citing_year>cited_year:
+                    tmp.append(knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year][citing_year])
+        return np.nanmean(tmp)
+
+    time_window_size_range = [5,10]
+    last_year = 2021
+    first_year = 1962
+
+    knowledge_flow_normalized_per_field_per_time_window_to_future = {time_window_size: {(final_year-time_window_size+1,final_year): {"future": {partition: {partition: 0 for partition in all_partitions} for partition in all_partitions}} for final_year in range(last_year,first_year,-time_window_size)} for time_window_size in time_window_size_range}
+
+    for time_window_size in knowledge_flow_normalized_per_field_per_time_window_to_future.keys():
+        for cited_time_window,tmp_dict in knowledge_flow_normalized_per_field_per_time_window_to_future[time_window_size].items():
+            for cited_field in all_partitions:
+                for citing_field in all_partitions:
+                    tmp_dict["future"][cited_field][citing_field] = time_window_average_knowledge_flow_to_future(citing_field,cited_field,range(cited_time_window[0],cited_time_window[1]+1))
+
+    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_to_future_{partition_used}.pkl.gz"),"wb") as fp:
+        pickle.dump(knowledge_flow_normalized_per_field_per_time_window_to_future,fp)
+
+        
+
+    knowledge_flow_normalized_per_field_per_time_window_to_future_by_level = {}
+    knowledge_flow_normalized_per_field_in_time_by_level = {}
+    knowledge_flow_normalized_per_field_per_time_window_by_level = {}
+    
+    lev = gt_partition_level
+    
+    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_to_future_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
+        knowledge_flow_normalized_per_field_per_time_window_to_future_by_level[lev] = pickle.load(fp)
+    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_in_time_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
+        knowledge_flow_normalized_per_field_in_time_by_level[lev] = pickle.load(fp)
+    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
+        knowledge_flow_normalized_per_field_per_time_window_by_level[lev] = pickle.load(fp)
+
+    def time_average_knowledge_flow_to_future(lev,citing_field,cited_field,cited_year):
+
+        tmp = []
+
+        for citing_year in range(cited_year+1, 2022):
+            if citing_year>cited_year:
+                tmp.append(knowledge_flow_normalized_per_field_in_time_by_level[lev][cited_field][citing_field][cited_year][citing_year])
+        return np.nanmean(tmp)
+
+    knowledge_flow_normalized_per_field_in_time_to_future_by_level = {}
+    knowledge_flow_normalized_per_field_in_time_to_future_by_level[lev] = {}
+    for cluster_from in knowledge_flow_normalized_per_field_in_time_by_level[lev].keys():
+        knowledge_flow_normalized_per_field_in_time_to_future_by_level[lev][cluster_from] = {}
+        for cluster_to in knowledge_flow_normalized_per_field_in_time_by_level[lev][cluster_from].keys():
+            knowledge_flow_normalized_per_field_in_time_to_future_by_level[lev][cluster_from][cluster_to] = {}
+            for year_from in knowledge_flow_normalized_per_field_in_time_by_level[lev][cluster_from][cluster_to].keys():
+                knowledge_flow_normalized_per_field_in_time_to_future_by_level[lev][cluster_from][cluster_to][year_from] = time_average_knowledge_flow_to_future(lev,cluster_to,cluster_from,year_from)
+
+    knowledge_flow_normalized_per_field_in_time_by_level_df = {}
+
+    _t_from = []
+    _t_to = []
+    _from = []
+    _to = []
+    k = []
+
+    for cluster_from in knowledge_flow_normalized_per_field_in_time_by_level[lev].keys():
+        for cluster_to in knowledge_flow_normalized_per_field_in_time_by_level[lev][cluster_from].keys():
+            for year_from in knowledge_flow_normalized_per_field_in_time_by_level[lev][cluster_from][cluster_to].keys():
+                for year_to in knowledge_flow_normalized_per_field_in_time_by_level[lev][cluster_from][cluster_to][year_from].keys():
+                    if year_to >= year_from:
+                        _t_from.append(year_from)
+                        _t_to.append(year_to)
+                        _from.append(cluster_from)
+                        _to.append(cluster_to)
+                        k.append(knowledge_flow_normalized_per_field_in_time_by_level[lev][cluster_from][cluster_to][year_from][year_to])
+
+    knowledge_flow_normalized_per_field_in_time_by_level_df[lev] = pd.DataFrame({'year_from':_t_from,
+                                                                                 'year_to':_t_to,
+                                                                                 'cluster_from':_from,
+                                                                                 'cluster_to':_to,
+                                                                                 'knowledge_flow':k
+                                                                                })
+
+    knowledge_flow_normalized_per_field_in_time_by_level_df[lev].cluster_from = knowledge_flow_normalized_per_field_in_time_by_level_df[lev].cluster_from.astype(int)
+    knowledge_flow_normalized_per_field_in_time_by_level_df[lev].cluster_to = knowledge_flow_normalized_per_field_in_time_by_level_df[lev].cluster_to.astype(int)
+    
+    
+    knowledge_flow_normalized_per_field_in_time_by_level_df[lev].to_csv(os.path.join(results_folder,f"knowledge_flow_normalized_per_field_in_time_df_gt_partition_lev_{lev}.csv"), index=False)
+
+print("FINISHED")
