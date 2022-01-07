@@ -68,6 +68,9 @@ parser.add_argument('-stop', '--stop_at_fit', type=int,
     help='If stop_at_fit is 1, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate. [default 0]',
     default=0)
 
+parser.add_argument('-prep', '--do_only_prep', type=int,
+    help='If do_only_prep is 1, it does only the preparation of all files needed to do the hsbm and the following analysis. [default 0]',
+    default=0)
 
 
 
@@ -82,6 +85,7 @@ do_analysis = arguments.do_analysis
 _id_list_string = arguments.id_list_for_analysis
 _id_list = ast.literal_eval(_id_list_string)
 stop_at_fit = arguments.stop_at_fit == 1
+do_only_prep = arguments.do_only_prep == 1
 
 
 
@@ -297,6 +301,8 @@ else:
     hyperlink_g.save(f'{results_folder}gt_network{filter_label}.gt')
 
 
+if do_only_prep:
+    exit()
 
 ## algorithm run
 ## ACHTUNG seed is what before whas the job array id
@@ -321,13 +327,13 @@ if not do_analysis:
         print('Fit and calibration files not found, starting fit.',flush=True)
         start = datetime.now()
         
-        hyperlink_text_hsbm_states =  equilibrate_hyperlink_text_hsbm(edited_text, 
+        hyperlink_text_hsbm_states =  fit_hyperlink_text_hsbm(edited_text, 
                                                                       IDs, 
                                                                       hyperlinks, 
                                                                       N_iter, 
                                                                       results_folder, 
                                                                       stop_at_fit = stop_at_fit, 
-                                                                      filename = f'results_fit_greedy{filter_label}_tmp.gz', 
+                                                                      filename_fit = f'results_fit_greedy{filter_label}_tmp.gz', 
                                                                       SEED_NUM=SEED_NUM, 
                                                                       number_iterations_MC_equilibrate = number_iterations_MC_equilibrate)
         if stop_at_fit == True:
@@ -838,3 +844,13 @@ try:
     print('hierarchy docs at non trivial level:', hierarchy_docs[min(levels)],flush=True)
 except:
     print('There is only one level, so hierarchy_docs is an empty dictionary.')
+
+    
+    
+    
+    
+    
+    
+    
+# COMPUTE CENTRALITIES
+
