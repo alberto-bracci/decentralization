@@ -3,7 +3,7 @@
 #$ -t 1
 #$ -j y    
 #$ -pe smp 1
-#$ -l h_vmem=400G
+#$ -l h_vmem=300G
 #$ -l highmem
 #$ -l h_rt=240:0:0  
 # #$ -m bae
@@ -14,7 +14,7 @@ conda activate gt
 cd ../scripts
 
 # python hsbm.py --dataset_path "data/2021-09-01/decentralization/"  --do_analysis 0  -i ${SGE_TASK_ID}
-python hsbm.py --dataset_path "data/2021-09-01/internet/"  --do_analysis 1 -id_list "[1,2,3,4,5,6,7,8,9,10]"
+python hsbm.py --dataset_path "data/2022-01-01/decentralization/"  --do_analysis 1 -id_list "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]" # "[1,2,3,4,5,6,7,8,9,10]"
 
 # qsub -hold_jid 500 job_two.sh ### where 500 is the id of the previous job to finish
 
