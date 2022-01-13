@@ -85,7 +85,7 @@ arguments = parser.parse_args()
 dataset_path = arguments.dataset_path
 analysis_results_subfolder = arguments.analysis_results_subfolder
 if len(analysis_results_subfolder) > 0 and analysis_results_subfolder[-1] != "/":
-        analysis_results_subfolder += "/"
+    analysis_results_subfolder += "/"
 ID = arguments.ID
 number_iterations_MC_equilibrate = arguments.number_iterations_MC_equilibrate
 min_word_occurences = arguments.min_word_occurences
@@ -427,6 +427,7 @@ else:
             time_duration_list.append(time_duration)
             print('Loaded %d'%_id,flush = True)
         time_duration = np.mean(time_duration_list)
+        os.makedirs(results_folder+analysis_results_subfolder, exist_ok = True)
         with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,time_duration),fp)
         end = datetime.now()
