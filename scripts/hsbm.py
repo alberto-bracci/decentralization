@@ -41,6 +41,11 @@ parser.add_argument('-data', '--dataset_path', type=str,
     help='Path to the dataset with respect to the repo root folder, e.g. "data/2021-09-01/decentralization/" (do NOT start with "/" and DO end with "/") [REQUIRED]',
     required=True)
 
+parser.add_argument('-analysis_results_subfolder', '--analysis_results_subfolder', type=str,
+    help='If not changed, if do_analysis==0 it is set automatically to the iteration subfolder, while if do_analysis==1 it is the same as dataset_path.\
+            If instead it is provided, it creates a subfolder inside results_folder in which to save the results (specific iterations loaded from dataset_path)',
+    default="")
+
 parser.add_argument('-i', '--ID', type=int,
     help='Array-ID of multiple hSBM, useful only if do_analysis=0. Used also as seed for the mcmc iteration [default 1]',
     default=1)
@@ -78,6 +83,9 @@ parser.add_argument('-prep', '--do_only_prep', type=int,
 arguments = parser.parse_args()
 
 dataset_path = arguments.dataset_path
+analysis_results_subfolder = arguments.analysis_results_subfolder
+if len(analysis_results_subfolder) > 0 and analysis_results_subfolder[-1] != "/":
+        analysis_results_subfolder += "/"
 ID = arguments.ID
 number_iterations_MC_equilibrate = arguments.number_iterations_MC_equilibrate
 min_word_occurences = arguments.min_word_occurences
@@ -125,16 +133,13 @@ print('Loading data')
 
 
 results_folder = os.path.join(dataset_path,f'{min_inCitations}_min_inCitations_{min_word_occurences}_min_word_occurrences/')
-results_folder_iteration = os.path.join(results_folder, f'ID_{ID}_no_iterMC_{number_iterations_MC_equilibrate}/')
-
 chosen_text_attribute = 'paperAbstract'
 if use_titles:
     # USE TITLES TEXT INSTEAD OF ABSTRACTS
     print('Using titles text instead of abstracts!', flush=True)
     chosen_text_attribute = 'title'
     results_folder = results_folder[:-1] + '_titles/'
-    results_folder_iteration = os.path.join(results_folder, f'ID_{ID}_no_iterMC_{number_iterations_MC_equilibrate}/')
-    
+results_folder_iteration = os.path.join(results_folder, f'ID_{ID}_no_iterMC_{number_iterations_MC_equilibrate}/')
 
 print(results_folder_iteration,flush=True)
 print(f'Filtering with at least {min_inCitations} citations and {N_iter} iterations and {number_iterations_MC_equilibrate} swaps in MC-equilibrate.',flush=True)
@@ -312,7 +317,7 @@ ordered_edited_texts = [tokenized_texts_dict[paper_id] for paper_id in ordered_p
     
 # COMPUTE CENTRALITIES
 try:
-    with gzip.open(f'{results_folder}/hyperlink_g_centralities{filter_label}.pkl.gz','rb') as fp:
+    with gzip.open(f'{results_folder}hyperlink_g_centralities{filter_label}.pkl.gz','rb') as fp:
         centralities = pickle.load(fp)
 except:
     print("Calculating centralities...")
@@ -337,7 +342,7 @@ except:
     centralities['katz'] = graph_tool.centrality.katz(hyperlink_g)._get_data()
     print("Done katz centrality", flush=True)
 
-    with gzip.open(f'{results_folder}/hyperlink_g_centralities{filter_label}.pkl.gz','wb') as fp:
+    with gzip.open(f'{results_folder}hyperlink_g_centralities{filter_label}.pkl.gz','wb') as fp:
         pickle.dump(centralities,fp)
 
     
@@ -361,7 +366,7 @@ if not do_analysis:
         ################ ACHTUNG CHANGING FOLDER TO SUBFOLDER HERE!!!!!!!! ################
         results_folder = results_folder_iteration
         os.makedirs(results_folder, exist_ok=True)
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
+        with gzip.open(f'{results_folder}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
             hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         print(f'Fit and calibration already done (in {time_duration}), loaded.',flush=True)
         
@@ -384,7 +389,7 @@ if not do_analysis:
         end = datetime.now()
         time_duration = end - start
         
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
+        with gzip.open(f'{results_folder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,end-start),fp)
 
         print('Time duration algorithm',time_duration,flush=True)
@@ -398,7 +403,7 @@ else:
         start = datetime.now()
         print('Doing analysis, not fit',flush = True)
         print('Loading list of iterations', _id_list_string, flush=True)
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
+        with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
             hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         print('Average time duration algorithm',time_duration,flush=True)
         end = datetime.now()
@@ -408,21 +413,21 @@ else:
         time_duration_list = []
         results_folder_iteration = os.path.join(results_folder, f'ID_{_id_list[0]}_no_iterMC_{number_iterations_MC_equilibrate}/')
         
-        with gzip.open(f'{results_folder_iteration}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
+        with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
                     hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         time_duration_list.append(time_duration)
         print('Loaded %d'%_id_list[0],flush = True)
 
         for _id in _id_list[1:]:
             results_folder_iteration = os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/')
-            with gzip.open(f'{results_folder_iteration}/results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
+            with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
     #                 hyperlink_text_hsbm_states.append(pickle.load(fp)[0])
                 hyperlink_text_hsbm_state,time_duration = pickle.load(fp)
                 hyperlink_text_hsbm_states += hyperlink_text_hsbm_state
             time_duration_list.append(time_duration)
             print('Loaded %d'%_id,flush = True)
         time_duration = np.mean(time_duration_list)
-        with gzip.open(f'{results_folder}/results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
+        with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,time_duration),fp)
         end = datetime.now()
         print('Average time duration algorithm',time_duration,flush=True)
@@ -438,7 +443,7 @@ print('\nRetrieve partitions',flush=True)
 
 # Retrieve partitions assigned to documents in each run. Also save index of highest non-trivial level.
 try:
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions{filter_label}.pkl.gz','rb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions{filter_label}.pkl.gz','rb') as fp:
         hyperlink_text_hsbm_partitions, levels = pickle.load(fp)
     print('Loaded', flush=True)
 except:
@@ -449,7 +454,7 @@ except:
 
 #     print('number of partitions',len(set(hyperlink_text_hsbm_partitions[0])),flush=True)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions{filter_label}.pkl.gz','wb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hyperlink_text_hsbm_partitions, levels),fp)
 
 
@@ -459,7 +464,7 @@ except:
 
 print('\nConsensus Partition',flush=True)
 try:
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','rb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','rb') as fp:
         hyperlink_text_hsbm_partitions_by_level,duration = pickle.load(fp)
     print('Loaded', flush=True)
 except:
@@ -490,10 +495,10 @@ except:
     end = datetime.now()
     print(end - start)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','wb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hyperlink_text_hsbm_partitions_by_level,end-start),fp)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_docs_all_info{filter_label}.pkl.gz','wb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_docs_all_info{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hyperlink_text_hsbm_partitions_by_level_info,end-start),fp)
 
 # # THIS IS USELESS HERE
@@ -555,7 +560,7 @@ def get_word_type_blocks(h_t_state, h_t_graph, level):
 
 # for each iteration get word groups for all non-trivial level
 try:
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','rb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','rb') as fp:
         H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = pickle.load(fp)
     print('Loaded', flush=True)
 except:
@@ -572,7 +577,7 @@ except:
             H_T_word_hsbm_partitions_by_level[l].append(word_partitions[0])
             H_T_word_hsbm_num_groups_by_level[l].append(num_word_groups)
 
-    with gzip.open(f'{results_folder}/results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','wb') as fp:
+    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level),fp)
 
     end = datetime.now()
@@ -785,7 +790,7 @@ for l in h_t_doc_consensus_by_level.keys():
     h_t_consensus_summary_by_level[l]['p_tw_d'] = p_tw_d # Topic proportions over documents
     h_t_consensus_summary_by_level[l]['p_w_tw'] = p_w_tw # Topic distribution over words
 
-with gzip.open(f'{results_folder}/results_fit_greedy_partitions_consensus_all{filter_label}.pkl.gz','wb') as fp:
+with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_consensus_all{filter_label}.pkl.gz','wb') as fp:
     pickle.dump((h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level),fp)
     
 end = datetime.now()
@@ -847,7 +852,7 @@ for l in h_t_doc_consensus_by_level.keys():
     mixture_proportion_by_level[l], normalized_mixture_proportion_by_level[l], avg_topic_frequency_by_level[l] = topic_mixture_proportion(dict_groups_by_level[l],ordered_edited_texts,h_t_doc_consensus_by_level[l])
 
 
-with gzip.open(f'{results_folder}/results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','wb') as fp:
+with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level),fp)
 
 
@@ -876,7 +881,7 @@ hierarchy_words[highest_non_trivial_level+1] = {0:set(list(hierarchy_words[highe
 # Add higher layer of hierarchy docs so that we have a unique root
 hierarchy_docs[highest_non_trivial_level+1] = {0:set(list(hierarchy_docs[highest_non_trivial_level].keys()))}
 
-with gzip.open(f'{results_folder}/results_fit_greedy_topic_hierarchy_all{filter_label}.pkl.gz','wb') as fp:
+with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_topic_hierarchy_all{filter_label}.pkl.gz','wb') as fp:
         pickle.dump((hierarchy_docs,hierarchy_words),fp)
 
 try:
@@ -899,7 +904,7 @@ except:
 # Normalized mixture proportion by different level partition and topic
 
 try:
-    with gzip.open(os.path.join(results_folder, f"results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz"),"rb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz"),"rb") as fp:
         topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = pickle.load(fp)
 except FileNotFoundError:
     mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = {}, {}, {}
@@ -909,7 +914,7 @@ except FileNotFoundError:
             mixture_proportion_by_level_partition_by_level_topics[level_partition][l], normalized_mixture_proportion_by_level_partition_by_level_topics[level_partition][l], avg_topic_frequency_by_level_partition_by_level_topics[level_partition][l] = \
                 topic_mixture_proportion(dict_groups_by_level[l],ordered_edited_texts,h_t_doc_consensus_by_level[level_partition])
 
-    with gzip.open(os.path.join(results_folder, f"results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz"),"wb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz"),"wb") as fp:
         pickle.dump((topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics),fp)
 
         
@@ -1058,7 +1063,7 @@ for gt_partition_level in range(highest_non_trivial_level + 1):
                         if year1 is not None and year2 is not None:
                             knowledge_units_count_per_field_in_time[partition1][partition2][year1][year2] += (1/len(partitions1))*(1/len(partitions2))
 
-    with gzip.open(os.path.join(results_folder, f"knowledge_units_count_per_field_in_time_{partition_used}.pkl.gz"),"wb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_units_count_per_field_in_time_{partition_used}.pkl.gz"),"wb") as fp:
         pickle.dump(knowledge_units_count_per_field_in_time,fp)
 
     field_units_per_year = {year:{field:0 for field in all_partitions} for year in years}
@@ -1093,7 +1098,7 @@ for gt_partition_level in range(highest_non_trivial_level + 1):
                         continue
                     knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year][citing_year] = normalize_citations_count(citing_field,cited_field,citing_year,cited_year)
 
-    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_in_time_{partition_used}.pkl.gz"),"wb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_flow_normalized_per_field_in_time_{partition_used}.pkl.gz"),"wb") as fp:
         pickle.dump(knowledge_flow_normalized_per_field_in_time,fp)
 
     # TODO: average over time window of field knowledge flow
@@ -1130,7 +1135,7 @@ for gt_partition_level in range(highest_non_trivial_level + 1):
                     for citing_field in all_partitions:
                         tmp_dict[cited_field][citing_field] = time_window_average_knowledge_flow(citing_field,cited_field,range(citing_time_window[0],citing_time_window[1]+1),range(cited_time_window[0],cited_time_window[1]+1))
 
-    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_{partition_used}.pkl.gz"),"wb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_flow_normalized_per_field_per_time_window_{partition_used}.pkl.gz"),"wb") as fp:
         pickle.dump(knowledge_flow_normalized_per_field_per_time_window,fp)
 
 
@@ -1159,7 +1164,7 @@ for gt_partition_level in range(highest_non_trivial_level + 1):
                 for citing_field in all_partitions:
                     tmp_dict["future"][cited_field][citing_field] = time_window_average_knowledge_flow_to_future(citing_field,cited_field,range(cited_time_window[0],cited_time_window[1]+1))
 
-    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_to_future_{partition_used}.pkl.gz"),"wb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_flow_normalized_per_field_per_time_window_to_future_{partition_used}.pkl.gz"),"wb") as fp:
         pickle.dump(knowledge_flow_normalized_per_field_per_time_window_to_future,fp)
 
         
@@ -1170,11 +1175,11 @@ for gt_partition_level in range(highest_non_trivial_level + 1):
     
     lev = gt_partition_level
     
-    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_to_future_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_flow_normalized_per_field_per_time_window_to_future_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
         knowledge_flow_normalized_per_field_per_time_window_to_future_by_level[lev] = pickle.load(fp)
-    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_in_time_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_flow_normalized_per_field_in_time_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
         knowledge_flow_normalized_per_field_in_time_by_level[lev] = pickle.load(fp)
-    with gzip.open(os.path.join(results_folder, f"knowledge_flow_normalized_per_field_per_time_window_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
+    with gzip.open(os.path.join(results_folder+analysis_results_subfolder, f"knowledge_flow_normalized_per_field_per_time_window_gt_partition_lev_{lev}.pkl.gz"),"rb") as fp:
         knowledge_flow_normalized_per_field_per_time_window_by_level[lev] = pickle.load(fp)
 
     def time_average_knowledge_flow_to_future(lev,citing_field,cited_field,cited_year):
@@ -1225,6 +1230,6 @@ for gt_partition_level in range(highest_non_trivial_level + 1):
     knowledge_flow_normalized_per_field_in_time_by_level_df[lev].cluster_to = knowledge_flow_normalized_per_field_in_time_by_level_df[lev].cluster_to.astype(int)
     
     
-    knowledge_flow_normalized_per_field_in_time_by_level_df[lev].to_csv(os.path.join(results_folder,f"knowledge_flow_normalized_per_field_in_time_df_gt_partition_lev_{lev}.csv"), index=False)
+    knowledge_flow_normalized_per_field_in_time_by_level_df[lev].to_csv(os.path.join(results_folder+analysis_results_subfolder,f"knowledge_flow_normalized_per_field_in_time_df_gt_partition_lev_{lev}.csv"), index=False)
 
 print("FINISHED")
