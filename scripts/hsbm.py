@@ -312,7 +312,8 @@ else:
 # ACHTUNG: h_t_doc_consensus is (for some reason) not ordered like edited_text, 
 # but with the same order as hyperlink_g.vp['name']... 
 ordered_paper_ids = list(hyperlink_g.vp['name'])
-ordered_edited_texts = [tokenized_texts_dict[paper_id] for paper_id in ordered_paper_ids]
+# ordered_edited_texts = [[tokenized_texts_dict[paper_id][i] for i in range(tokenized_texts_dict[paper_id]) if tokenized_texts_dict[paper_id][i] in new_filtered_words] for paper_id in ordered_paper_ids]
+ordered_edited_texts = [edited_text[IDs.index(paper_id)] for paper_id in ordered_paper_ids]
     
     
 # COMPUTE CENTRALITIES
@@ -800,7 +801,7 @@ print('Time duration',end-start,flush=True)
 
 
 
-g_words = [ hyperlink_text_hsbm_states[0].g.vp['name'][v] for v in  hyperlink_text_hsbm_states[0].g.vertices() if hyperlink_text_hsbm_states[0].g.vp['kind'][v]==1   ]
+g_words = [ hyperlink_text_hsbm_states[0].g.vp['name'][v] for v in hyperlink_text_hsbm_states[0].g.vertices() if hyperlink_text_hsbm_states[0].g.vp['kind'][v]==1   ]
 dict_groups_by_level = {l:get_topics_h_t_consensus_model(h_t_consensus_summary_by_level[l], g_words, n=1000000) for l in h_t_doc_consensus_by_level.keys()}
 
 
