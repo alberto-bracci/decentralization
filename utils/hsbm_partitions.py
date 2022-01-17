@@ -142,7 +142,7 @@ def get_topics_h_t_consensus_model(groups,
     '''
     dict_groups = groups
     Bw = dict_groups['Bw'] # number of word-groups
-    p_w_tw = dict_groups['p_w_tw'] # topic proportions over documents
+    p_w_tw = dict_groups['p_w_tw'] # topic proportions over words
     words = words
     # Loop over all word-groups
     dict_group_words = {}
