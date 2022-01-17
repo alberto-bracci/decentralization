@@ -726,7 +726,8 @@ for l in h_t_doc_consensus_by_level.keys():
     
     # number of word-tokens (edges excluding hyperlinks)
     N = int(np.sum([hyperlink_text_hsbm_states[0].g.ep.edgeCount[e] for e in hyperlink_text_hsbm_states[0].g.edges() if hyperlink_text_hsbm_states[0].g.ep['edgeType'][e]== 0 ])) 
-
+#     N = int(np.sum([hyperlink_g.ep.edgeCount[e] for e in hyperlink_g.edges() if hyperlink_g.ep['edgeType'][e]== 0 ])) 
+    
     # Number of blocks
     B = len(set(h_t_word_consensus_by_level[l])) + len(set(h_t_doc_consensus_by_level[l]))
 #     B = max(h_t_word_consensus_by_level[l])+1
@@ -744,13 +745,17 @@ for l in h_t_doc_consensus_by_level.keys():
 
     # All graphs created the same for each H+T model
     for e in hyperlink_text_hsbm_states[0].g.edges():
+#     for e in hyperlink_g.edges():
         # Each edge will be between a document node and word-type node
         if hyperlink_text_hsbm_states[0].g.ep.edgeType[e] == 0:        
+#         if hyperlink_g.ep.edgeType[e] == 0:        
             # v1 ranges from 0, 1, 2, ..., D - 1
             # v2 ranges from D, ..., (D + V) - 1 (V # of word types)
             
             v1 = int(e.source()) # document node index
             v2 = int(e.target()) # word type node index # THIS MAKES AN IndexError!
+            v1_name = hyperlink_text_hsbm_states[0].g.vp['name'][v1]
+            v2_name = hyperlink_text_hsbm_states[0].g.vp['name'][v2]
 #             v1, v2 = e
 #             v1 = int(v1)
 #             v2 = int(v2)
@@ -758,7 +763,10 @@ for l in h_t_doc_consensus_by_level.keys():
             # z1 will have values from 1, 2, ..., B_d; document-group i.e document block that doc node is in 
             # z2 will have values from B_d + 1, B_d + 2,  ..., B_d + B_w; word-group i.e word block that word type node is in
             # Recall that h_t_word_consensus starts at 0 so need to -120
-            z1, z2 = h_t_doc_consensus_by_level[l][v1], h_t_word_consensus_by_level[l][v2-D]
+            
+#             z1, z2 = h_t_doc_consensus_by_level[l][v1], h_t_word_consensus_by_level[l][v2-D]
+            z1, z2 = h_t_doc_consensus_by_level[l][ordered_paper_ids.index(v1_name)], h_t_word_consensus_by_level[l][v2-D]
+            
             n_wb[v2-D,z2] += 1 # word type v2 is in topic z2
             n_db[v1,z1] += 1 # document v1 is in doc cluster z1
             n_dbw[v1,z2] += 1 # document v1 has a word in topic z2
