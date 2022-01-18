@@ -63,12 +63,12 @@ parser.add_argument('-titles', '--use_titles', type=int,
     default=1)
 
 parser.add_argument('-analysis', '--do_analysis', type=int,
-    help='Do analysis gathering all iterations, instead of just doing the fit. [default 0]',
+    help='Do analysis after gathering all iterations, instead of just the one provided by the ID. [default 0]',
     default=0)
 
 parser.add_argument('-id_list', '--id_list_for_analysis', type=str,
-    help='list of ids for which we do the analysis, list written as string (with brackets, see default), and then converted to list in the script. Needs to contain at least two elements. [default "[1,2]"]',
-    default='[1,2]')
+    help='list of ids for which we do the analysis, list written as string (with brackets, see default), and then converted to list in the script. By default set to the list of the provided id. [default "[1]"]',
+    default='[1]')
 
 parser.add_argument('-stop', '--stop_at_fit', type=int,
     help='If stop_at_fit is 1, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate. [default 0]',
@@ -93,6 +93,8 @@ use_titles = arguments.use_titles == 1
 do_analysis = arguments.do_analysis
 _id_list_string = arguments.id_list_for_analysis
 _id_list = ast.literal_eval(_id_list_string)
+if do_analysis == 0:
+    _id_list = [ID]
 stop_at_fit = arguments.stop_at_fit == 1
 do_only_prep = arguments.do_only_prep == 1
 
@@ -381,7 +383,7 @@ if not do_analysis:
                                                                       N_iter, 
                                                                       results_folder, 
                                                                       stop_at_fit = stop_at_fit, 
-                                                                      filename_fit = f'results_fit_greedy{filter_label}_tmp.gz', 
+                                                                      filename_fit = f'results_fit_greedy{filter_label}_tmp.pkl.gz', 
                                                                       SEED_NUM=SEED_NUM, 
                                                                       number_iterations_MC_equilibrate = number_iterations_MC_equilibrate)
         if stop_at_fit == True:
@@ -415,24 +417,24 @@ else:
         results_folder_iteration = os.path.join(results_folder, f'ID_{_id_list[0]}_no_iterMC_{number_iterations_MC_equilibrate}/')
         
         with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
-                    hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
+            hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         time_duration_list.append(time_duration)
         print('Loaded %d'%_id_list[0],flush = True)
 
-        for _id in _id_list[1:]:
-            results_folder_iteration = os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/')
-            with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
-    #                 hyperlink_text_hsbm_states.append(pickle.load(fp)[0])
-                hyperlink_text_hsbm_state,time_duration = pickle.load(fp)
-                hyperlink_text_hsbm_states += hyperlink_text_hsbm_state
-            time_duration_list.append(time_duration)
-            print('Loaded %d'%_id,flush = True)
-        time_duration = np.mean(time_duration_list)
-        os.makedirs(results_folder+analysis_results_subfolder, exist_ok = True)
-        with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
-            pickle.dump((hyperlink_text_hsbm_states,time_duration),fp)
+#         for _id in _id_list[1:]:
+#             results_folder_iteration = os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/')
+#             with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
+#     #                 hyperlink_text_hsbm_states.append(pickle.load(fp)[0])
+#                 hyperlink_text_hsbm_state,time_duration = pickle.load(fp)
+#                 hyperlink_text_hsbm_states += hyperlink_text_hsbm_state
+#             time_duration_list.append(time_duration)
+#             print('Loaded %d'%_id,flush = True)
+#         time_duration = np.mean(time_duration_list)
+#         os.makedirs(results_folder+analysis_results_subfolder, exist_ok = True)
+#         with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
+#             pickle.dump((hyperlink_text_hsbm_states,time_duration),fp)
         end = datetime.now()
-        print('Average time duration algorithm',time_duration,flush=True)
+#         print('Average time duration algorithm',time_duration,flush=True)
         print('Time loading states',end-start,flush=True)
         
 
@@ -444,20 +446,14 @@ print('\nRetrieve partitions',flush=True)
 
 
 # Retrieve partitions assigned to documents in each run. Also save index of highest non-trivial level.
-try:
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions{filter_label}.pkl.gz','rb') as fp:
-        hyperlink_text_hsbm_partitions, levels = pickle.load(fp)
-    print('Loaded', flush=True)
-except:
-    start = datetime.now()
-    hyperlink_text_hsbm_partitions, levels = get_hsbm_partitions(hyperlink_g, hyperlink_text_hsbm_states)
-    end = datetime.now()
-    print('Time duration retrieving partitions',end - start,flush=True)
-
-#     print('number of partitions',len(set(hyperlink_text_hsbm_partitions[0])),flush=True)
-
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions{filter_label}.pkl.gz','wb') as fp:
-        pickle.dump((hyperlink_text_hsbm_partitions, levels),fp)
+start = datetime.now()
+if do_analysis == 0:
+    dir_list = [results_folder]
+else:
+    dir_list = [os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/') for _id in _id_list]
+hyperlink_text_hsbm_partitions, levels = get_highest_level_hsbm_partitions_from_iterations(hyperlink_g, dir_list, results_folder+analysis_results_subfolder)
+end = datetime.now()
+print('Time duration retrieving partitions',end - start,flush=True)
 
 
 # ## Consensus Partition
@@ -465,43 +461,13 @@ except:
 # Compute the consensus partition assignment to document nodes over all the iterations.
 
 print('\nConsensus Partition',flush=True)
-try:
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','rb') as fp:
-        hyperlink_text_hsbm_partitions_by_level,duration = pickle.load(fp)
-    print('Loaded', flush=True)
-except:
-    start = datetime.now()
-    print(start)
+hyperlink_text_hsbm_partitions_by_level, time_duration = get_hsbm_partitions_from_iterations(hyperlink_g,
+                                        dir_list, 
+                                        levels,
+                                        results_folder+analysis_results_subfolder,
+                                       )
+print(time_duration, flush=True)
 
-    clustering_info = doc_clustering('./', hyperlink_g)
-#     no_levels = hyperlink_text_hsbm_states[0].n_levels
-
-    clustering_info.seeds = [0]
-
-    hyperlink_text_hsbm_partitions_by_level = {}
-    hyperlink_text_hsbm_partitions_by_level_info = {}
-
-    for l in range(max(levels)+1):
-        hyperlink_text_hsbm_partitions_by_level[l] = []
-        hyperlink_text_hsbm_partitions_by_level_info[l] = []
-
-    for iteration,curr_hsbm in enumerate(hyperlink_text_hsbm_states):
-        print('Iteration %d'%iteration, flush=True)
-#         for l in range(levels[iteration]+1):
-        for l in range(max(levels)+1):
-            print('\tlevel',l)
-            tmp = clustering_info.collect_info2('1-layer-doc', curr_hsbm.g, [l], curr_hsbm.state)
-            hyperlink_text_hsbm_partitions_by_level_info[l].append(tmp)
-            hyperlink_text_hsbm_partitions_by_level[l].append(tmp[0][0])
-
-    end = datetime.now()
-    print(end - start)
-
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_docs_all{filter_label}.pkl.gz','wb') as fp:
-        pickle.dump((hyperlink_text_hsbm_partitions_by_level,end-start),fp)
-
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_docs_all_info{filter_label}.pkl.gz','wb') as fp:
-        pickle.dump((hyperlink_text_hsbm_partitions_by_level_info,end-start),fp)
 
 # # THIS IS USELESS HERE
 # start = datetime.now()
@@ -521,71 +487,13 @@ print('\nTopic Modelling',flush=True)
 
 # We now retrieve the topics associated to the consensus partition.
 
-def get_word_type_blocks(h_t_state, h_t_graph, level):
-    '''
-    Retrieve the block assignment of WORD types for the model.
-    '''
-    partitions = []
-    num_of_groups = []
-    entropies = []
-    block_SBM_partitions = {} # store dictionary to map nodes to partition.
-    b = h_t_state.project_level(level).get_blocks()
-    # Need to specify to retrieve partitions for WORD type nodes.
-    for node in h_t_graph.vertices():
-        if h_t_graph.vp['kind'][node] == 1:
-            block_SBM_partitions[h_t_graph.vp.name[node]] = b[node]                    
 
-    # Retrieve the partition from the SBM and store as parameter.    
-    partition = h_t_graph.vp['partition'] = h_t_graph.new_vp('int')
-    # Assign partition label to node properties.
-    for v in h_t_graph.vertices():
-        if h_t_graph.vp['kind'][v] == 1:
-            partition[v] = block_SBM_partitions[h_t_graph.vp.name[v]]
-    # IGNORE FIRST 120 NODES (there are document nodes)
-    partitions.append(list(h_t_graph.vp.partition)[len(IDs):])
-    num_of_groups.append(len(set(partitions[0])))
-    entropies.append(h_t_state.entropy())
-    return (partitions, num_of_groups, entropies)
-
-# THIS IS ONLY FOR MAXIMUM LEVEL, USELESS
-# # for each iteration get word groups for the maximum non trivial level
-# H_T_word_hsbm_partitions = []
-# H_T_word_hsbm_num_groups = []
-# start = datetime.now()
-# for i in range(len(levels)):
-#     print('\tIteration',i,flush=True)
-#     word_partitions, num_word_groups, en = get_word_type_blocks(hyperlink_text_hsbm_states[i].state, hyperlink_text_hsbm_states[i].g, levels[i])
-#     H_T_word_hsbm_partitions.append(word_partitions[0])
-#     H_T_word_hsbm_num_groups.append(num_word_groups)
-# end = datetime.now()
-# print(end-start,flush=True)
-
-# for each iteration get word groups for all non-trivial level
-try:
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','rb') as fp:
-        H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = pickle.load(fp)
-    print('Loaded', flush=True)
-except:
-    start = datetime.now()
-    H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = {},{}
-
-    for l in hyperlink_text_hsbm_partitions_by_level.keys():
-        print('level',l)
-        H_T_word_hsbm_partitions_by_level[l] = []
-        H_T_word_hsbm_num_groups_by_level[l] = []
-        for i in range(len(levels)):
-            print('\titeration',i,flush=True)
-            word_partitions, num_word_groups, en = get_word_type_blocks(hyperlink_text_hsbm_states[i].state, hyperlink_text_hsbm_states[i].g, l)
-            H_T_word_hsbm_partitions_by_level[l].append(word_partitions[0])
-            H_T_word_hsbm_num_groups_by_level[l].append(num_word_groups)
-
-    with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_words_all{filter_label}.pkl.gz','wb') as fp:
-            pickle.dump((H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level),fp)
-
-    end = datetime.now()
-    print('Time duration',end-start,flush=True)
-
-
+H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = get_hsbm_word_partitions_from_iterations(hyperlink_g,
+                                        dir_list, 
+                                        levels,
+                                        results_folder + analysis_results_subfolder,
+                                        IDs
+                                       )
 
 
 
