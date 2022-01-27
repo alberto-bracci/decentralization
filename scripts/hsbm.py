@@ -78,6 +78,10 @@ parser.add_argument('-prep', '--do_only_prep', type=int,
     help='If do_only_prep is 1, it does only the preparation of all files needed to do the hsbm and the following analysis. [default 0]',
     default=0)
 
+parser.add_argument('-lev_kf', '--first_level_knowledge_flow', type=int,
+    help='Calculate the knowledge flows starting from this first level. [default 2]',
+    default=2)
+
 
 
 arguments = parser.parse_args()
@@ -707,7 +711,7 @@ partition_first_field = False # Deprecated
 partition_exploded = False
 gt_partition = True
 
-for gt_partition_level in range(2,highest_non_trivial_level + 1):
+for gt_partition_level in range(first_level_knowledge_flow,highest_non_trivial_level + 1):
     
     # Load the correct partitions in the key 'ye_partition' for each paper
     
@@ -893,7 +897,6 @@ for gt_partition_level in range(2,highest_non_trivial_level + 1):
         tmp = knowledge_flow_normalized_per_field_per_time_window[time_window_size] = {}
         for final_year in range(last_year,first_year,-time_window_size):
             tmp2 = tmp[(final_year-time_window_size+1,final_year)] = {}
-    #         for final_year2 in range(final_year,last_year,time_window_size):
             for final_year2 in range(final_year,last_year+1,time_window_size):
                 tmp3 = tmp2[(final_year2+1-time_window_size,final_year2)] = {}
                 for partition in all_partitions:
