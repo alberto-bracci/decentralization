@@ -2,11 +2,15 @@ import gzip
 import pickle
 import os
 import pandas as pd
-
+import numpy as np
 import re
 from nltk.stem import WordNetLemmatizer
 import nltk
 nltk.download('wordnet')
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+import graph_tool.all as gt
+import graph_tool
 
 
 ## tokenized abstracts
@@ -266,3 +270,188 @@ def load_article_category(all_docs_dict,
             pickle.dump(article_category,fp)
         print("article_category dumped to file.")
     return article_category
+
+
+
+def filter_dataset(
+    all_docs_dict,
+    tokenized_texts_dict,
+    min_inCitations,
+    min_word_occurences,
+    results_folder,
+    filter_label,
+):
+# TODO: wrappare in funzione che restituisce IDs, texts e edited texts, fino al try except subito dopo. Check se si possono mettere anche cose di prima. 
+# (ordered_papers_with_cits, new_filtered_words, tokenized_texts_dict, results_folder, filter_label)
+
+
+    # Filter the network
+
+    citations_df, ordered_papers_with_cits = load_filtered_papers_with_cits(all_docs_dict, tokenized_texts_dict, results_folder, min_inCitations=min_inCitations)
+    print(f'number of document-document links: {len(citations_df)}',flush=True)
+    # words appearing in at least two of these articles
+    to_count_words_in_doc_df = pd.DataFrame(data = {'paperId': ordered_papers_with_cits, 'word':[tokenized_texts_dict[x] for x in ordered_papers_with_cits]})
+    to_count_words_in_doc_df = to_count_words_in_doc_df.explode('word')
+    x = to_count_words_in_doc_df.groupby('word').paperId.nunique()
+    new_filtered_words = set(x[x>=min_word_occurences].index.values)
+    print('Number of new filtered words', len(new_filtered_words),flush=True)
+
+
+    # Remove stop words in text data
+    try:
+        with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.pkl.gz', 'rb') as fp:
+            IDs,texts,edited_text = pickle.load(fp)
+    except:
+        IDs = [] # list of unique paperIds
+        texts = [] # list of tokenized texts
+        for paper_id in ordered_papers_with_cits:
+            IDs.append(paper_id)
+            texts.append(tokenized_texts_dict[paper_id])
+
+        edited_text = []
+        stop_words = stopwords.words('english') + stopwords.words('italian') + stopwords.words('german') + stopwords.words('french') + stopwords.words('spanish')
+
+        # Recall texts is list of lists of words in each document.
+        for doc in texts:
+            temp_doc = []
+            for word in doc:
+                if word not in stop_words and word in new_filtered_words:
+                    temp_doc.append(word)
+            edited_text.append(temp_doc)
+
+    #     with gzip.open(f'{results_folder}edited_text_papers_with_abstract{filter_label}.pkl.gz', 'wb') as fp:
+    #             pickle.dump(edited_text,fp)
+
+        with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.pkl.gz', 'wb') as fp:
+                pickle.dump((IDs,texts,edited_text),fp)
+        print('Dumped edited texts')
+
+    print(f'number of word-document links: {np.sum([len(set(x)) for x in edited_text])}',flush=True)
+
+    return (ordered_papers_with_cits, new_filtered_words, tokenized_texts_dict, results_folder, filter_label, IDs, texts, edited_text)
+
+
+
+
+def create_hyperlink_g(
+    article_category,
+    results_folder,
+    filter_label
+):
+    # Create gt object
+    if os.path.exists(f'{results_folder}gt_network{filter_label}.gt'):
+        hyperlink_g = gt.load_graph(f'{results_folder}gt_network{filter_label}.gt')
+    #     num_vertices = hyperlink_g.num_vertices()
+    #     num_edges = hyperlink_g.num_edges()
+        label = hyperlink_g.vp['label']
+    #     name = hyperlink_g.vp['name']
+    #     for v in hyperlink_g.vertices():
+    #         label[v] = article_category[name[v]]
+        # Retrieve true partition of graph
+    #     true_partition = list(hyperlink_g.vp.label)    
+        # Retrieve ordering of articles
+    #     article_names = list(hyperlink_g.vp.name)
+        filename = f'{results_folder}citations_edgelist{filter_label}.csv'
+        x = pd.read_csv(filename)
+        hyperlinks = [(row[0],row[1]) for source, row in x.iterrows()]  
+    #     unique_hyperlinks = hyperlinks.copy()
+        print('\nLoaded gt object')
+    else:
+        print('\nCreating gt object...')
+        hyperlink_edgelist_filepath = f'{results_folder}citations_edgelist{filter_label}.csv'
+        hyperlink_g = gt.load_graph_from_csv(hyperlink_edgelist_filepath,
+                                  skip_first=True,
+                                  directed=True,
+                                  csv_options={'delimiter': ','},)
+    #     num_vertices = hyperlink_g.num_vertices()
+    #     num_edges = hyperlink_g.num_edges()
+
+        # Create hyperlinks list
+        x = pd.read_csv(hyperlink_edgelist_filepath)
+        hyperlinks = [(row[0],row[1]) for source, row in x.iterrows()]  
+
+        label = hyperlink_g.vp['label'] = hyperlink_g.new_vp('string')
+        name = hyperlink_g.vp['name'] # every vertex has a name already associated to it!
+
+        # We now assign category article to each Wikipedia article
+        for v in hyperlink_g.vertices():
+            label[v] = article_category[name[v]]
+
+        # Retrieve true partition of graph
+    #     true_partition = list(hyperlink_g.vp.label)    
+        # Retrieve ordering of articles
+    #     article_names = list(hyperlink_g.vp.name)
+
+    #     unique_hyperlinks = hyperlinks.copy()
+
+        hyperlink_g.save(f'{results_folder}gt_network{filter_label}.gt')
+
+    return (hyperlink_g, hyperlinks)
+
+
+
+
+
+
+
+
+def load_centralities(
+    all_docs_dict,
+    citations_df,
+    ordered_paper_ids,
+    hyperlink_g, 
+    results_folder,
+    filter_label = '',
+):
+    try:
+        with gzip.open(f'{results_folder}hyperlink_g_centralities{filter_label}.pkl.gz','rb') as fp:
+            centralities = pickle.load(fp)
+        print('\nLoaded centralities.')
+    except:
+        print('\nCalculating centralities...')
+        centralities = compute_centralities(
+            all_docs_dict=all_docs_dict,
+            citations_df=citations_df,
+            ordered_paper_ids=ordered_paper_ids,
+            hyperlink_g=hyperlink_g, 
+            results_folder=results_folder,
+            filter_label=filter_label)
+    return centralities
+
+def compute_centralities(
+    all_docs_dict,
+    citations_df,
+    ordered_paper_ids,
+    hyperlink_g, 
+    results_folder,
+    filter_label = '',
+):
+    id2NoCits = {x: len(all_docs_dict[x]['inCitations']) for x in all_docs_dict.keys()}
+    centralities = {}
+    centralities['citations_overall'] = np.vectorize(id2NoCits.get)(ordered_paper_ids)
+    print('Done citations_overall centrality', flush=True)
+    paper_with_in_cits = citations_df['to'].value_counts().index.values
+#     paper_with_cits = list(citations_df['from'].value_counts().index.values) + list(citations_df['to'].value_counts().index.values)
+    paper_without_in_cits = set(ordered_paper_ids).difference(set(paper_with_in_cits))
+    centralities['in_degree'] = citations_df['to'].value_counts().append(pd.Series(data = np.zeros(len(paper_without_in_cits)),index=paper_without_in_cits)).loc[ordered_paper_ids].values
+    print('Done in_degree centrality', flush=True)
+    paper_with_out_cits = citations_df['from'].value_counts().index.values
+    paper_without_out_cits = set(ordered_paper_ids).difference(set(paper_with_out_cits))
+    centralities['out_degree'] = citations_df['from'].value_counts().append(pd.Series(data = np.zeros(len(paper_without_out_cits)),index=paper_without_out_cits)).loc[ordered_paper_ids].values
+    print('Done out_degree centrality', flush=True)
+    if len(ordered_paper_ids) > 1000:
+        centralities['eigenvector'] = graph_tool.centrality.eigenvector(hyperlink_g)[1]._get_data()
+        print('Done eigenvector centrality', flush=True)
+    centralities['betweenness'] = graph_tool.centrality.betweenness(hyperlink_g)[0]._get_data()
+    print('Done betweenness centrality', flush=True)
+    centralities['closeness'] = graph_tool.centrality.closeness(hyperlink_g)._get_data()
+    print('Done closeness centrality', flush=True)
+    centralities['pagerank'] = graph_tool.centrality.pagerank(hyperlink_g)._get_data()
+    print('Done pagerank centrality', flush=True)
+    centralities['katz'] = graph_tool.centrality.katz(hyperlink_g)._get_data()
+    print('Done katz centrality', flush=True)
+
+    with gzip.open(f'{results_folder}hyperlink_g_centralities{filter_label}.pkl.gz','wb') as fp:
+        pickle.dump(centralities,fp)
+    
+    return centralities

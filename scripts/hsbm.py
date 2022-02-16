@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-
-
 # IMPORTS
 
 import gzip
@@ -21,68 +19,53 @@ from hsbm.utils.doc_clustering import *
 from hsbm_creation import *
 from hsbm_fit import *
 from hsbm_partitions import *
-
 from gi.repository import Gtk, Gdk
 import graph_tool.all as gt
 import graph_tool as graph_tool
 import ast # to get list comprehension from a string
-
-
 import functools, builtins # to impose flush=True on every print
 builtins.print = functools.partial(print, flush=True)
+
 
 # ARGUMENTS FROM SHELL
 
 import argparse
 parser = argparse.ArgumentParser(description='Filtering the documents and creating the GT network.')
 
-
 parser.add_argument('-data', '--dataset_path', type=str,
     help='Path to the dataset with respect to the repo root folder, e.g. "data/2021-09-01/decentralization/" (do NOT start with "/" and DO end with "/") [REQUIRED]',
     required=True)
-
 parser.add_argument('-analysis_results_subfolder', '--analysis_results_subfolder', type=str,
     help='If not changed, if do_analysis==0 it is set automatically to the iteration subfolder, while if do_analysis==1 it is the same as dataset_path.\
             If instead it is provided, it creates a subfolder inside results_folder in which to save the results (specific iterations loaded from dataset_path)',
     default='')
-
 parser.add_argument('-i', '--ID', type=int,
     help='Array-ID of multiple hSBM, useful only if do_analysis=0. Used also as seed for the mcmc iteration [default 1]',
     default=1)
-
 parser.add_argument('-NoIterMC', '--number_iterations_MC_equilibrate', type=int,
     help='Number of iterations in the MC equilibration step of the hSBM algorithm. [default 5000]',
     default=5000)
-
 parser.add_argument('-occ', '--min_word_occurences', type=int,
     help='Minimum number of articles a word needs to present in. [default 5]',
     default=5)
-
 parser.add_argument('-titles', '--use_titles', type=int,
     help='If equal to 1 use titles instead of abstracts, otherwise use abstracts [default 1]',
     default=1)
-
 parser.add_argument('-analysis', '--do_analysis', type=int,
     help='Do analysis after gathering all iterations, instead of just the one provided by the ID. [default 0]',
     default=0)
-
 parser.add_argument('-id_list', '--id_list_for_analysis', type=str,
     help='list of ids for which we do the analysis, list written as string (with brackets, see default), and then converted to list in the script. By default set to the list of the provided id. [default "[1]"]',
     default='[1]')
-
 parser.add_argument('-stop', '--stop_at_fit', type=int,
     help='If stop_at_fit is 1, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate. [default 0]',
     default=0)
-
 parser.add_argument('-prep', '--do_only_prep', type=int,
     help='If do_only_prep is 1, it does only the preparation of all files needed to do the hsbm and the following analysis. [default 0]',
     default=0)
-
 parser.add_argument('-lev_kf', '--first_level_knowledge_flow', type=int,
     help='Calculate the knowledge flows starting from this first level. [default 2]',
     default=2)
-
-
 
 arguments = parser.parse_args()
 
@@ -101,42 +84,20 @@ if do_analysis == 0:
     _id_list = [ID]
 stop_at_fit = arguments.stop_at_fit == 1
 do_only_prep = arguments.do_only_prep == 1
-
-
-
-# FILTERING OF THE DATASET
-# 1. keep only articles in the citations layer (citing or cited)
-# 2. filter out words appearing in at least min_word_occurences article
-
-
-
-
+first_level_knowledge_flow = arguments.first_level_knowledge_flow
 
 
 # Parameters needed in the process.
 # ACHTUNG: Be aware to change this!
-
-# Minimum number of citations filter
-min_inCitations = 0
-# Number of iterations of the hSBM algorithm. Now it's not parallelized, so be aware of computational time
-N_iter = 1
-# If you do plots or other graph_tool stuff, this needs to be properly set with the number of available cores
-n_cores = 1
+min_inCitations = 0 # Minimum number of citations filter
+N_iter = 1 # Number of iterations of the hSBM algorithm. Now it's not parallelized, so be aware of computational time
+n_cores = 1 # If you do plots or other graph_tool stuff, this needs to be properly set with the number of available cores
 gt.openmp_set_num_threads(n_cores)
-
-# DELETE!!!!
-edge_divider = 1
 
 
 # FILES DIRECTORY
 
-
-# filter_label = f'_{min_inCitations}_min_inCitations' # to use at the end of the names to be saved
-filter_label = '' # if you want a specific label to do some testing
-
-
-print('Loading data')
-
+filter_label = '' # if you want a specific label to do some testing, to use at the end of the names to be saved
 
 results_folder = os.path.join(dataset_path,f'{min_inCitations}_min_inCitations_{min_word_occurences}_min_word_occurrences/')
 chosen_text_attribute = 'paperAbstract'
@@ -146,204 +107,70 @@ if use_titles:
     chosen_text_attribute = 'title'
     results_folder = results_folder[:-1] + '_titles/'
 results_folder_iteration = os.path.join(results_folder, f'ID_{ID}_no_iterMC_{number_iterations_MC_equilibrate}/')
-
 print(results_folder_iteration,flush=True)
 print(f'Filtering with at least {min_inCitations} citations and {N_iter} iterations and {number_iterations_MC_equilibrate} swaps in MC-equilibrate.',flush=True)
-
 os.makedirs(results_folder, exist_ok = True)
 if len(analysis_results_subfolder) > 0:
     os.makedirs(results_folder+analysis_results_subfolder, exist_ok = True)
-## Pruning of papers
-print('Pruning of papers',flush=True)
-# eliminating duplicated papers
 
+    
+# LOADING DATA
+
+print('\nLoading data set')
 with gzip.open(f'{dataset_path}papers_dict.pkl.gz', 'rb') as fp:
     all_docs_dict = pickle.load(fp)
-        
+
+# Check that every doc has the chosen attribute
 all_docs_dict = {x:all_docs_dict[x] for x in all_docs_dict if chosen_text_attribute in all_docs_dict[x] and all_docs_dict[x][chosen_text_attribute] is not None and len(all_docs_dict[x][chosen_text_attribute])>0}
-
-
 print('total number of docs: %d'%(len(all_docs_dict)))
 
-
-
-
-## tokenized texts
-
+# tokenized texts
 tokenized_texts_dict = load_tokenized_texts_dict(all_docs_dict, results_folder, chosen_text_attribute=chosen_text_attribute, file_name = 'tokenized_texts_dict_all.pkl.gz')
 
 # article category (fields of study)
-
 article_category = load_article_category(all_docs_dict, results_folder, file_name = 'article_category_all.pkl.gz')
 
-## citations edgelist (hyperlinks)
+# citations edgelist (hyperlinks)
 sorted_paper_ids_with_texts = list(tokenized_texts_dict.keys())
 citations_df = load_citations_edgelist(all_docs_dict, sorted_paper_ids_with_texts, results_folder, file_name = 'citations_edgelist_all.csv')
 
 
+# FILTER NETWORK
 
-# graph-tool analysis
-# The following ordered lists are required
-# - texts: list of tokenized texts
-# - IDs: list of unique paperIds
-
-IDs = []
-texts = []
-for paper_id in sorted_paper_ids_with_texts:
-    IDs.append(paper_id)
-    texts.append(tokenized_texts_dict[paper_id])
-
+ordered_papers_with_cits, new_filtered_words, tokenized_texts_dict, results_folder, filter_label, IDs, texts, edited_text = filter_dataset(
+    all_docs_dict,
+    tokenized_texts_dict,
+    min_inCitations,
+    min_word_occurences,
+    results_folder,
+    filter_label,
+)
 
 
+# CREATE GT OBJECT
 
-## Filter the network
-citations_df, ordered_papers_with_cits = load_filtered_papers_with_cits(all_docs_dict, tokenized_texts_dict, results_folder, min_inCitations=min_inCitations)
-print(f'number of document-document links: {len(citations_df)}',flush=True)
-# words appearing in at least two of these articles
-
-to_count_words_in_doc_df = pd.DataFrame(data = {'paperId': ordered_papers_with_cits, 'word':[tokenized_texts_dict[x] for x in ordered_papers_with_cits]})
-
-to_count_words_in_doc_df = to_count_words_in_doc_df.explode('word')
-x = to_count_words_in_doc_df.groupby('word').paperId.nunique()
-
-new_filtered_words = set(x[x>=min_word_occurences].index.values)
-print('Number of new filtered words', len(new_filtered_words),flush=True)
+hyperlink_g, hyperlinks = create_hyperlink_g(
+    article_category,
+    results_folder,
+    filter_label
+)
 
 
-    
-    
-    
-# graph-tool analysis
-# The following ordered lists are required
-# - texts: list of tokenized texts
-# - IDs: list of unique paperIds
-
-IDs = []
-texts = []
-for paper_id in ordered_papers_with_cits:
-    IDs.append(paper_id)
-    texts.append(tokenized_texts_dict[paper_id])
-
-
-
-# Remove stop words in text data
-try:
-    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.pkl.gz', 'rb') as fp:
-        IDs,texts,edited_text = pickle.load(fp)
-except:
-    edited_text = []
-    from nltk.corpus import stopwords
-    import nltk
-    nltk.download('stopwords')
-
-    stop_words = stopwords.words('english') + stopwords.words('italian') + stopwords.words('german') + stopwords.words('french') + stopwords.words('spanish')
-    
-    # Recall texts is list of lists of words in each document.
-    for doc in texts:
-        temp_doc = []
-        for word in doc:
-            if word not in stop_words and word in new_filtered_words:
-                temp_doc.append(word)
-        edited_text.append(temp_doc)
-
-    with gzip.open(f'{results_folder}edited_text_papers_with_abstract{filter_label}.pkl.gz', 'wb') as fp:
-            pickle.dump(edited_text,fp)
-
-    with gzip.open(f'{results_folder}IDs_texts_and_edited_text_papers_with_abstract{filter_label}.pkl.gz', 'wb') as fp:
-            pickle.dump((IDs,texts,edited_text),fp)
-    print('Dumped edited texts')
-
-print(f'number of word-document links: {np.sum([len(set(x)) for x in edited_text])}',flush=True)
-
-# Create gt object
-if os.path.exists(f'{results_folder}gt_network{filter_label}.gt'):
-    hyperlink_g = gt.load_graph(f'{results_folder}gt_network{filter_label}.gt')
-    num_vertices = hyperlink_g.num_vertices()
-    num_edges = hyperlink_g.num_edges()
-    label = hyperlink_g.vp['label']
-    name = hyperlink_g.vp['name']
-    for v in hyperlink_g.vertices():
-        category_of_article = article_category[name[v]]
-    # Retrieve true partition of graph
-    true_partition = list(hyperlink_g.vp.label)    
-    # Retrieve ordering of articles
-    article_names = list(hyperlink_g.vp.name)
-    filename = f'{results_folder}citations_edgelist{filter_label}.csv'
-    x = pd.read_csv(filename)
-    hyperlinks = [(row[0],row[1]) for source, row in x.iterrows()]  
-    unique_hyperlinks = hyperlinks.copy()
-else:
-    print('Creating gt object...')
-    hyperlink_edgelist = f'{results_folder}citations_edgelist{filter_label}.csv'
-    hyperlink_g = gt.load_graph_from_csv(hyperlink_edgelist,
-                              skip_first=True,
-                              directed=True,
-                              csv_options={'delimiter': ','},)
-    num_vertices = hyperlink_g.num_vertices()
-    num_edges = hyperlink_g.num_edges()
-
-    # Create hyperlinks list
-    filename = f'{results_folder}citations_edgelist{filter_label}.csv'
-    x = pd.read_csv(filename)
-    hyperlinks = [(row[0],row[1]) for source, row in x.iterrows()]  
-
-    label = hyperlink_g.vp['label'] = hyperlink_g.new_vp('string')
-    name = hyperlink_g.vp['name'] # every vertex has a name already associated to it!
-
-    # We now assign category article to each Wikipedia article
-    for v in hyperlink_g.vertices():
-        category_of_article = article_category[name[v]]
-        label[v] = category_of_article # assign wikipedia category to article
-
-    # Retrieve true partition of graph
-    true_partition = list(hyperlink_g.vp.label)    
-    # Retrieve ordering of articles
-    article_names = list(hyperlink_g.vp.name)
-
-    unique_hyperlinks = hyperlinks.copy()
-
-    hyperlink_g.save(f'{results_folder}gt_network{filter_label}.gt')
-
-
-    
-    
 # ACHTUNG: h_t_doc_consensus is (for some reason) not ordered like edited_text, 
 # but with the same order as hyperlink_g.vp['name']... 
 ordered_paper_ids = list(hyperlink_g.vp['name'])
-# ordered_edited_texts = [[tokenized_texts_dict[paper_id][i] for i in range(tokenized_texts_dict[paper_id]) if tokenized_texts_dict[paper_id][i] in new_filtered_words] for paper_id in ordered_paper_ids]
 ordered_edited_texts = [edited_text[IDs.index(paper_id)] for paper_id in ordered_paper_ids]
     
-    
+
 # COMPUTE CENTRALITIES
-try:
-    with gzip.open(f'{results_folder}hyperlink_g_centralities{filter_label}.pkl.gz','rb') as fp:
-        centralities = pickle.load(fp)
-    print('\nLoaded centralities.')
-except:
-    print('\nCalculating centralities...')
-    id2NoCits = {x: len(all_docs_dict[x]['inCitations']) for x in all_docs_dict.keys()}
-
-    centralities = {}
-    centralities['citations_overall'] = np.vectorize(id2NoCits.get)(ordered_paper_ids)
-    print('Done citations_overall centrality', flush=True)
-    paper_with_cits = citations_df['from'].value_counts().index.values
-    paper_without_cits = set(ordered_paper_ids).difference(set(paper_with_cits))
-    centralities['in_degree'] = citations_df['from'].value_counts().append(pd.Series(data = np.zeros(len(paper_without_cits)),index=paper_without_cits)).loc[ordered_paper_ids].values
-    print('Done in_degree centrality', flush=True)
-    if len(ordered_paper_ids) > 1000:
-        centralities['eigenvector'] = graph_tool.centrality.eigenvector(hyperlink_g)[1]._get_data()
-        print('Done eigenvector centrality', flush=True)
-    centralities['betweenness'] = graph_tool.centrality.betweenness(hyperlink_g)[0]._get_data()
-    print('Done betweenness centrality', flush=True)
-    centralities['closeness'] = graph_tool.centrality.closeness(hyperlink_g)._get_data()
-    print('Done closeness centrality', flush=True)
-    centralities['pagerank'] = graph_tool.centrality.pagerank(hyperlink_g)._get_data()
-    print('Done pagerank centrality', flush=True)
-    centralities['katz'] = graph_tool.centrality.katz(hyperlink_g)._get_data()
-    print('Done katz centrality', flush=True)
-
-    with gzip.open(f'{results_folder}hyperlink_g_centralities{filter_label}.pkl.gz','wb') as fp:
-        pickle.dump(centralities,fp)
+centralities = load_centralities(
+    all_docs_dict,
+    citations_df,
+    ordered_paper_ids,
+    hyperlink_g, 
+    results_folder,
+    filter_label,
+)
 
 print('\nFinished all preparation.\n')
 # EXIT HERE IF YOU WANT ONLY THE PREPARATION, WITHOUT ANY HSBM CALCULATION OR CONSENSUS PARTITIONS        
@@ -351,12 +178,12 @@ if do_only_prep:
     print('Exiting after preparation finished.')
     exit()
 
-## algorithm run
-## ACHTUNG seed is what before whas the job array id
+    
+    
+# ACHTUNG seed is what before whas the job array id
 SEED_NUM = ID
 print(f'seed is {SEED_NUM}',flush=True)
 print('gt version:', gt.__version__)
-
 
 
 
@@ -434,8 +261,7 @@ else:
     print('Time loading states',end-start,flush=True)
         
 
-# ## Retrieve partitions
-# 
+# RETRIEVE PARTITIONS
 # Retrieve the partitions assigned to the document nodes by examining the highest non-trivial level of the hierarchical degree-corrected SBM.
 print('\nRetrieve doc partitions',flush=True)
 print('\nHighest level',flush=True)
@@ -472,127 +298,26 @@ H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = get_hsbm_
                                         IDs
                                        )
 
-# ## Consensus Summary
+# CONSENSUS PARTITION
 print('\nConsensus partition by level', flush=True)
 start = datetime.now()
-print('Calculating nested consensus partition among docs', flush=True)
-h_t_doc_consensus_by_level, hyperlink_docs_hsbm_partitions_by_level = get_consensus_nested_partition(hyperlink_text_hsbm_partitions_by_level)
-print('Calculating nested consensus partition among words', flush=True)
-h_t_word_consensus_by_level, hyperlink_words_hsbm_partitions_by_level = get_consensus_nested_partition(H_T_word_hsbm_partitions_by_level)
-    
-for l in list(hyperlink_text_hsbm_partitions_by_level.keys()):
-    if len(set(h_t_word_consensus_by_level[l])) == 1 and len(set(h_t_doc_consensus_by_level[l])) == 1:
-        print('Removing level %d because it has only 1 cluster of docs and 1 of words'%l, flush=True)
-        del h_t_word_consensus_by_level[l]
-        del h_t_doc_consensus_by_level[l]
-        del hyperlink_words_hsbm_partitions_by_level[l]
-        del hyperlink_text_hsbm_partitions_by_level[l]
-        
-        
-print('\nCalculating summary', flush=True)
+
+h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level = get_consensus(
+    hyperlink_text_hsbm_states = hyperlink_text_hsbm_states,
+    hyperlink_text_hsbm_partitions_by_level = hyperlink_text_hsbm_partitions_by_level,
+    H_T_word_hsbm_partitions_by_level = H_T_word_hsbm_partitions_by_level,
+    ordered_paper_ids = ordered_paper_ids,
+    results_folder = results_folder+analysis_results_subfolder, 
+    filter_label = filter_label,
+    )
 
 highest_non_trivial_level = max(list(h_t_doc_consensus_by_level.keys()))
-
-h_t_consensus_summary_by_level = {}
-
-for l in h_t_doc_consensus_by_level.keys():
-    print('level %d'%l, flush=True)
-    D = len((h_t_doc_consensus_by_level[l])) # number of document nodes
-    print('\tdocs blocks are %d, end with index %d'%(len(set(h_t_doc_consensus_by_level[l])),max(h_t_doc_consensus_by_level[l])))
-    if len(set(h_t_doc_consensus_by_level[l])) != max(h_t_doc_consensus_by_level[l]) + 1:
-        print('\tReordering list of doc blocks', flush=True)
-        old_blocks = sorted(set(h_t_doc_consensus_by_level[l]))
-        new_blocks = list(range(len(set(h_t_doc_consensus_by_level[l]))))
-        remap_blocks_dict = {old_blocks[i]:new_blocks[i] for i in range(len(set(h_t_doc_consensus_by_level[l])))}
-        for i in range(D):
-            h_t_doc_consensus_by_level[l][i] = remap_blocks_dict[h_t_doc_consensus_by_level[l][i]]
-            
-    print('\twords blocks are %d, end with index %d'%(len(set(h_t_word_consensus_by_level[l])),max(h_t_word_consensus_by_level[l])))
-    V = len((h_t_word_consensus_by_level[l])) # number of word-type nodes
-    if len(set(h_t_word_consensus_by_level[l])) != max(h_t_word_consensus_by_level[l]) + 1:
-        print('\tReordering list of word blocks', flush=True)
-        old_blocks = sorted(set(h_t_word_consensus_by_level[l]))
-        new_blocks = list(range(len(set(h_t_word_consensus_by_level[l]))))
-        remap_blocks_dict = {old_blocks[i]:new_blocks[i] for i in range(len(set(h_t_word_consensus_by_level[l])))}
-        for i in range(V):
-            h_t_word_consensus_by_level[l][i] = remap_blocks_dict[h_t_word_consensus_by_level[l][i]]
-    
-    h_t_word_consensus_by_level[l] += len(set(h_t_doc_consensus_by_level[l])) # to get cluster number to not start from 0
-    
-    # number of word-tokens (edges excluding hyperlinks)
-    N = int(np.sum([hyperlink_text_hsbm_states[0].g.ep.edgeCount[e] for e in hyperlink_text_hsbm_states[0].g.edges() if hyperlink_text_hsbm_states[0].g.ep['edgeType'][e]== 0 ])) 
-    
-    # Number of blocks
-    B = len(set(h_t_word_consensus_by_level[l])) + len(set(h_t_doc_consensus_by_level[l]))
-
-    # Count labeled half-edges, total sum is # of edges
-    # Number of half-edges incident on word-node w and labeled as word-group tw
-    n_wb = np.zeros((V,B)) # will be reduced to (V, B_w)
-
-    # Number of half-edges incident on document-node d and labeled as document-group td
-    n_db = np.zeros((D,B)) # will be reduced to (D, B_d)
-
-    # Number of half-edges incident on document-node d and labeled as word-group tw
-    n_dbw = np.zeros((D,B))  # will be reduced to (D, B_w)
-
-    # All graphs created the same for each H+T model
-    for e in hyperlink_text_hsbm_states[0].g.edges():
-        # Each edge will be between a document node and word-type node
-        if hyperlink_text_hsbm_states[0].g.ep.edgeType[e] == 0:        
-            # v1 ranges from 0, 1, 2, ..., D - 1
-            # v2 ranges from D, ..., (D + V) - 1 (V # of word types)
-            
-            v1 = int(e.source()) # document node index
-            v2 = int(e.target()) # word type node index # THIS MAKES AN IndexError!
-            v1_name = hyperlink_text_hsbm_states[0].g.vp['name'][v1]
-            v2_name = hyperlink_text_hsbm_states[0].g.vp['name'][v2]
-            
-            # z1 will have values from 1, 2, ..., B_d; document-group i.e document block that doc node is in 
-            # z2 will have values from B_d + 1, B_d + 2,  ..., B_d + B_w; word-group i.e word block that word type node is in
-            # Recall that h_t_word_consensus starts at 0 so need to -120
-            
-            z1, z2 = h_t_doc_consensus_by_level[l][ordered_paper_ids.index(v1_name)], h_t_word_consensus_by_level[l][v2-D]
-            
-            n_wb[v2-D,z2] += 1 # word type v2 is in topic z2
-            n_db[v1,z1] += 1 # document v1 is in doc cluster z1
-            n_dbw[v1,z2] += 1 # document v1 has a word in topic z2
-
-    n_db = n_db[:, np.any(n_db, axis=0)] # (D, B_d)
-    n_wb = n_wb[:, np.any(n_wb, axis=0)] # (V, B_w)
-    n_dbw = n_dbw[:, np.any(n_dbw, axis=0)] # (D, B_d)
-
-    B_d = n_db.shape[1]  # number of document groups
-    B_w = n_wb.shape[1] # number of word groups (topics)
-
-    # Group membership of each word-type node in topic, matrix of ones or zeros, shape B_w x V
-    # This tells us the probability of topic over word type
-    p_tw_w = (n_wb / np.sum(n_wb, axis=1)[:, np.newaxis]).T
-
-    # Group membership of each doc-node, matrix of ones of zeros, shape B_d x D
-    p_td_d = (n_db / np.sum(n_db, axis=1)[:, np.newaxis]).T
-
-    # Mixture of word-groups into documents P(t_w | d), shape B_d x D
-    p_tw_d = (n_dbw / np.sum(n_dbw, axis=1)[:, np.newaxis]).T
-
-    # Per-topic word distribution, shape V x B_w
-    p_w_tw = n_wb / np.sum(n_wb, axis=0)[np.newaxis, :]
-
-
-    h_t_consensus_summary_by_level[l] = {}
-    h_t_consensus_summary_by_level[l]['Bd'] = B_d # Number of document groups
-    h_t_consensus_summary_by_level[l]['Bw'] = B_w # Number of word groups
-    h_t_consensus_summary_by_level[l]['p_tw_w'] = p_tw_w # Group membership of word nodes
-    h_t_consensus_summary_by_level[l]['p_td_d'] = p_td_d # Group membership of document nodes
-    h_t_consensus_summary_by_level[l]['p_tw_d'] = p_tw_d # Topic proportions over documents
-    h_t_consensus_summary_by_level[l]['p_w_tw'] = p_w_tw # Topic distribution over words
-
-with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_partitions_consensus_all{filter_label}.pkl.gz','wb') as fp:
-    pickle.dump((h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level),fp)
-    
 end = datetime.now()
 print('Time duration',end-start,flush=True)
 
 
+# TODO: wrappare in funzione che restituisce ...  fino a mixture proportion
+# Fare nuova utils, tipo analysis_hsbm
 print('\nGet all topics by level',flush=True)
 g_words = [ hyperlink_text_hsbm_states[0].g.vp['name'][v] for v in hyperlink_text_hsbm_states[0].g.vertices() if hyperlink_text_hsbm_states[0].g.vp['kind'][v]==1   ]
 dict_groups_by_level = {l:get_topics_h_t_consensus_model(h_t_consensus_summary_by_level[l], g_words, n=1000000) for l in h_t_doc_consensus_by_level.keys()}
@@ -620,34 +345,20 @@ mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_f
 for l in h_t_doc_consensus_by_level.keys():
     mixture_proportion_by_level[l], normalized_mixture_proportion_by_level[l], avg_topic_frequency_by_level[l] = topic_mixture_proportion(dict_groups_by_level[l],ordered_edited_texts,h_t_doc_consensus_by_level[l])
 with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','wb') as fp:
-        pickle.dump((topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level),fp)
+    pickle.dump((topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level),fp)
 end = datetime.now()
 print('Time duration',end-start,flush=True)
 
 
-# Recover Hierarchy
-print('\nGet hierarchy between partitions at different levels',flush=True)
+# RECOVER HIERARCHY
 start = datetime.now()
-hierarchy_docs, hierarchy_words = {}, {}
-for l in range(highest_non_trivial_level,0,-1):
-    tmp1_docs, tmp2_docs = h_t_doc_consensus_by_level[l], h_t_doc_consensus_by_level[l-1]
-    tmp1_words, tmp2_words = h_t_word_consensus_by_level[l], h_t_word_consensus_by_level[l-1]
-
-    hierarchy_docs[l] = {d: set() for d in np.unique(tmp1_docs)}
-    hierarchy_words[l] = {w: set() for w in np.unique(tmp1_words)}
-
-    for i in range(len(tmp1_docs)):
-        hierarchy_docs[l][tmp1_docs[i]].add(tmp2_docs[i])
-    for i in range(len(tmp1_words)):
-        hierarchy_words[l][tmp1_words[i]].add(tmp2_words[i])
-
-# Add higher layer of hierarchy words so that we have a unique root
-hierarchy_words[highest_non_trivial_level+1] = {0:set(list(hierarchy_words[highest_non_trivial_level].keys()))}
-# Add higher layer of hierarchy docs so that we have a unique root
-hierarchy_docs[highest_non_trivial_level+1] = {0:set(list(hierarchy_docs[highest_non_trivial_level].keys()))}
-
-with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy_topic_hierarchy_all{filter_label}.pkl.gz','wb') as fp:
-        pickle.dump((hierarchy_docs,hierarchy_words),fp)
+hierarchy_docs,hierarchy_words = get_hierarchy(
+    highest_non_trivial_level=highest_non_trivial_level,
+    h_t_doc_consensus_by_level=h_t_doc_consensus_by_level,
+    h_t_word_consensus_by_level=h_t_word_consensus_by_level,
+    results_folder=results_folder+analysis_results_subfolder,
+    filter_label = filter_label,
+)
 
 try:
     print('hierarchy words at non trivial level:', hierarchy_words[highest_non_trivial_level],flush=True)
@@ -665,7 +376,8 @@ print('Time duration',end-start,flush=True)
     
     
     
-    
+# TODO: wrappare in funzione che computa la Normalized mixture proportion between different levels
+# Sistemare i nomi (attento ai files gia' creati)
     
     
 # Normalized mixture proportion by different level partition and topic
@@ -706,103 +418,61 @@ paper2field = {x['id']:x['fieldsOfStudy'] for x in all_docs if 'id' in x and 'fi
 
 # all_docs_dict[paper]['ye_partition'] is a list of all the fields of the paper!!
 
-# ACHTUNG PUT TO TRUE ONLY ONE!!
-partition_first_field = False # Deprecated
-partition_exploded = False
-gt_partition = True
-
 for gt_partition_level in range(first_level_knowledge_flow,highest_non_trivial_level + 1):
     
     # Load the correct partitions in the key 'ye_partition' for each paper
     
-    if partition_first_field:
-        partition_used = 'original_partition_first_field'
-        # ACHTUNG here we assign the partition, can be changed
-        # THIS IS NOW DEPRECATED
-        for paper in all_docs_dict:
-            if 'fieldsOfStudy' in all_docs_dict[paper] and all_docs_dict[paper]['fieldsOfStudy'] is not None and len(all_docs_dict[paper]['fieldsOfStudy']) > 0:
-                all_docs_dict[paper]['ye_partition'] = all_docs_dict[paper]['fieldsOfStudy'][0]
-            elif 'fieldsOfStudy' in all_docs_dict[paper]: 
-                all_docs_dict[paper]['ye_partition'] = None
-
-        all_partitions = set([x['ye_partition'] for x in all_docs_dict.values()])
-        ye_partition = {field:set() for field in all_partitions}
-
-        for paper in all_docs_dict:
-            if 'ye_partition' in all_docs_dict[paper]:
-                ye_partition[all_docs_dict[paper]['ye_partition']].add(paper)
+    partition_used = 'gt_partition_lev_%d'%(gt_partition_level)
+    hyperlink_text_consensus_partitions_by_level = {}
+    for l in h_t_doc_consensus_by_level.keys():
+        print(l,flush=True)
+        hyperlink_text_consensus_partitions_by_level[l] = h_t_doc_consensus_by_level[l]
 
 
-    if partition_exploded:
-        partition_used = 'original_partition_exploded'
-        # ACHTUNG: papers may be assigned to multiple fields
+    name2partition = {}
+    for i,name in enumerate(hyperlink_g.vp['name']):
+        name2partition[name] = hyperlink_text_consensus_partitions_by_level[gt_partition_level][i]
+    paper_ids_with_partition = set(name2partition.keys())
 
-        for paper in all_docs_dict:
-            if 'fieldsOfStudy' in all_docs_dict[paper] and all_docs_dict[paper]['fieldsOfStudy'] is not None and len(all_docs_dict[paper]['fieldsOfStudy']) > 0:
-                all_docs_dict[paper]['ye_partition'] = all_docs_dict[paper]['fieldsOfStudy']
-            elif 'fieldsOfStudy' in all_docs_dict[paper]: 
-                all_docs_dict[paper]['ye_partition'] = []
+    doc_partition_remapping = {}
+    doc_partition_remapping_inverse = {}
+    lista1 = []
+    for paper in ordered_paper_ids:
+        lista1.append(name2partition[paper])
+    lista2 = hyperlink_text_consensus_partitions_by_level[gt_partition_level]
+    for part1, part2 in set(list(zip(lista1,lista2))):
+        if part1 in doc_partition_remapping:
+            print('THERE ARE MULTIPLE INSTANCES... ERROR')
+            break
+        else:
+            doc_partition_remapping[part1] = part2  
+            doc_partition_remapping_inverse[part2] = part1
 
-
-        all_partitions = set([x for y in paper2field.values() for x in y])
-        ye_partition = {field:set() for field in all_partitions}
-
-        for paper in all_docs:
-            for field in paper['fieldsOfStudy']:
-                ye_partition[field].add(paper['id'])
-
-
-    if gt_partition:
-        partition_used = 'gt_partition_lev_%d'%(gt_partition_level)
-        hyperlink_text_consensus_partitions_by_level = {}
-        for l in h_t_doc_consensus_by_level.keys():
-            print(l,flush=True)
-            hyperlink_text_consensus_partitions_by_level[l] = h_t_doc_consensus_by_level[l]
+    labelling_partition_remapping_by_level = {gt_partition_level:{x:str(x) for x in doc_partition_remapping.values()}}
+    labelling_partition_remapping_by_level_inverse = {level:{y:x for x,y in labelling_partition_remapping_by_level[level].items()} for level in labelling_partition_remapping_by_level}
 
 
-        name2partition = {}
-        for i,name in enumerate(hyperlink_g.vp['name']):
-            name2partition[name] = hyperlink_text_consensus_partitions_by_level[gt_partition_level][i]
-        paper_ids_with_partition = set(name2partition.keys())
+    print('Assigning partition field in docs')
 
-        doc_partition_remapping = {}
-        doc_partition_remapping_inverse = {}
-        lista1 = []
-        for paper in ordered_paper_ids:
-            lista1.append(name2partition[paper])
-        lista2 = hyperlink_text_consensus_partitions_by_level[gt_partition_level]
-        for part1, part2 in set(list(zip(lista1,lista2))):
-            if part1 in doc_partition_remapping:
-                print('THERE ARE MULTIPLE INSTANCES... ERROR')
-                break
-            else:
-                doc_partition_remapping[part1] = part2  
-                doc_partition_remapping_inverse[part2] = part1
-
-        labelling_partition_remapping_by_level = {gt_partition_level:{x:str(x) for x in doc_partition_remapping.values()}}
-        labelling_partition_remapping_by_level_inverse = {level:{y:x for x,y in labelling_partition_remapping_by_level[level].items()} for level in labelling_partition_remapping_by_level}
+    for paper_id in all_docs_dict:
+        if paper_id in paper_ids_with_partition:
+            all_docs_dict[paper_id]['ye_partition'] = [labelling_partition_remapping_by_level[gt_partition_level][doc_partition_remapping[name2partition[paper_id]]]]
+        else: 
+            all_docs_dict[paper_id]['ye_partition'] = []
 
 
-        print('Assigning partition field in docs')
+    all_partitions = set([x for x in labelling_partition_remapping_by_level[gt_partition_level].values()])
+    all_partitions = list(all_partitions)
+    all_partitions.sort()
+#     all_partitions = set(all_partitions)
+    ye_partition = {field:set() for field in all_partitions}
 
-        for paper_id in all_docs_dict:
-            if paper_id in paper_ids_with_partition:
-                all_docs_dict[paper_id]['ye_partition'] = [labelling_partition_remapping_by_level[gt_partition_level][doc_partition_remapping[name2partition[paper_id]]]]
-            else: 
-                all_docs_dict[paper_id]['ye_partition'] = []
-
-
-        all_partitions = set([x for x in labelling_partition_remapping_by_level[gt_partition_level].values()])
-        all_partitions = list(all_partitions)
-        all_partitions.sort()
-    #     all_partitions = set(all_partitions)
-        ye_partition = {field:set() for field in all_partitions}
-
-        for paper in all_docs:
-            for field in paper['ye_partition']:
-                ye_partition[field].add(paper['id'])
+    for paper in all_docs:
+        for field in paper['ye_partition']:
+            ye_partition[field].add(paper['id'])
 
 
+            
     # count citations between fields and between different times
 
     years_with_none = set([x['year'] for x in all_docs_dict.values()])
