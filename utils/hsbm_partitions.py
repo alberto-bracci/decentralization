@@ -5,7 +5,6 @@ import pickle
 import pandas as pd
 import numpy as np
 import os
-# move to repo root directory
 from datetime import datetime
 import sys
 sys.path.insert(0, os.path.join(os.getcwd(),"utils"))
@@ -16,12 +15,11 @@ from hsbm.utils.doc_clustering import *
 # import gi
 from gi.repository import Gtk, Gdk
 import graph_tool.all as gt
-import ast # to get list comprehension from a string
+# import ast # to get list comprehension from a string
 import scipy
 
-
-import functools, builtins # to impose flush=True on every print
-builtins.print = functools.partial(print, flush=True)
+# import functools, builtins # to impose flush=True on every print
+# builtins.print = functools.partial(print, flush=True)
 
 
 def find_highest_non_trivial_group(hyperlink_g, 
@@ -355,76 +353,6 @@ def get_consensus_nested_partition(H_T_word_hsbm_partitions_by_level,
     return h_t_word_consensus_by_level, hyperlink_words_hsbm_partitions_by_level
 
 
-def get_topics_h_t_consensus_model(groups, 
-                                   words, 
-                                   n=10, 
-                                  ):
-    '''
-    Retrieve topics in consensus partition for H+T model.
-    '''
-    dict_groups = groups
-    Bw = dict_groups['Bw'] # number of word-groups
-    p_w_tw = dict_groups['p_w_tw'] # topic proportions over words
-    # Loop over all word-groups
-    dict_group_words = {}
-    for tw in range(Bw):
-        p_w_ = p_w_tw[:, tw]
-        ind_w_ = np.argsort(p_w_)[::-1]
-        list_words_tw = []
-        for i in ind_w_[:n]:
-            if p_w_[i] > 0:
-                list_words_tw+=[(words[i],p_w_[i])]
-            else:
-                break
-        dict_group_words[tw] = list_words_tw
-    return dict_group_words    
-
-def topic_mixture_proportion(dict_groups,edited_text, document_partitions):
-
-    topics = dict_groups.keys()
-    partitions = np.unique(document_partitions)
-
-    avg_topic_frequency = {}
-    mixture_proportion = {}
-    normalized_mixture_proportion = {}
-
-    doc_texts = np.array(edited_text, dtype=object)
-
-    n_i_t = {}
-
-    topic_doc_group_words = {}
-
-    for doc_group in partitions:
-        topic_doc_group_words[doc_group] = set()
-        for i,doc_group_membership in enumerate(document_partitions):
-            if doc_group_membership != doc_group:
-                continue
-            topic_doc_group_words[doc_group] = topic_doc_group_words[doc_group].union(set(edited_text[i]))
-
-    for topic in topics:
-        topic_words = set([x[0] for x in dict_groups[topic]])
-        n_i_t[topic] = {}
-
-        for doc_group in partitions:
-            n_i_t[topic][doc_group] = len(topic_words.intersection(topic_doc_group_words[doc_group]))
-
-    for doc_group in partitions:
-        mixture_proportion[f'doc_group {doc_group}'] = {}
-        for topic in topics:
-            mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = n_i_t[topic][doc_group] / np.sum([n_i_t[topic_j][doc_group] for topic_j in topics])
-
-    S = np.sum([n_i_t[topic_j][doc_group] for doc_group in partitions for topic_j in topics])
-    for topic in topics:
-        avg_topic_frequency[f'topic {topic}'] = np.sum([n_i_t[topic][doc_group] for doc_group in partitions]) / S
-
-    for doc_group in partitions:
-        normalized_mixture_proportion[f'doc_group {doc_group}'] = {}
-        for topic in topics:
-            normalized_mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = ( mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] - avg_topic_frequency[f'topic {topic}'] ) / avg_topic_frequency[f'topic {topic}']
-
-    return mixture_proportion, normalized_mixture_proportion, avg_topic_frequency
-
-
 def get_consensus(
     hyperlink_text_hsbm_states,
     hyperlink_text_hsbm_partitions_by_level,
@@ -663,23 +591,34 @@ def get_hierarchy(
             h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level = pickle.load(fp)
         print('Loaded consensus from file', flush=True)
     except FileNotFoundError:
+        print('Recovering hierarchy')
         hierarchy_docs, hierarchy_words = {}, {}
         for l in range(highest_non_trivial_level,0,-1):
             tmp1_docs, tmp2_docs = h_t_doc_consensus_by_level[l], h_t_doc_consensus_by_level[l-1]
             tmp1_words, tmp2_words = h_t_word_consensus_by_level[l], h_t_word_consensus_by_level[l-1]
-
             hierarchy_docs[l] = {d: set() for d in np.unique(tmp1_docs)}
             hierarchy_words[l] = {w: set() for w in np.unique(tmp1_words)}
-
             for i in range(len(tmp1_docs)):
                 hierarchy_docs[l][tmp1_docs[i]].add(tmp2_docs[i])
             for i in range(len(tmp1_words)):
                 hierarchy_words[l][tmp1_words[i]].add(tmp2_words[i])
 
-        # Add higher layer of hierarchy words so that we have a unique root
-        hierarchy_words[highest_non_trivial_level+1] = {0:set(list(hierarchy_words[highest_non_trivial_level].keys()))}
-        # Add higher layer of hierarchy docs so that we have a unique root
-        hierarchy_docs[highest_non_trivial_level+1] = {0:set(list(hierarchy_docs[highest_non_trivial_level].keys()))}
+        try:
+            # Add higher layer of hierarchy words so that we have a unique root
+            hierarchy_words[highest_non_trivial_level+1] = {0:set(list(hierarchy_words[highest_non_trivial_level].keys()))}
+            # Add higher layer of hierarchy docs so that we have a unique root
+            hierarchy_docs[highest_non_trivial_level+1] = {0:set(list(hierarchy_docs[highest_non_trivial_level].keys()))}
+        except KeyError:
+            print(f'ACHTUNG: highest_non_trivial_level is {highest_non_trivial_level}')
+            # AHTUNG: We get KeyError if highest_non_trivial_level = 0, so the previous for cycle is skipped!
+            tmp1_docs, tmp2_docs = list(np.zeros(len(h_t_doc_consensus_by_level[0]))), h_t_doc_consensus_by_level[0]
+            tmp1_words, tmp2_words = list(np.zeros(len(h_t_word_consensus_by_level[0]))), h_t_word_consensus_by_level[0]
+            hierarchy_docs[1] = {d: set() for d in np.unique(tmp1_docs)}
+            hierarchy_words[1] = {w: set() for w in np.unique(tmp1_words)}
+            for i in range(len(tmp1_docs)):
+                hierarchy_docs[1][tmp1_docs[i]].add(tmp2_docs[i])
+            for i in range(len(tmp1_words)):
+                hierarchy_words[1][tmp1_words[i]].add(tmp2_words[i])
 
         with gzip.open(f'{results_folder}results_fit_greedy_topic_hierarchy_all{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hierarchy_docs,hierarchy_words),fp)

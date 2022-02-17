@@ -10,17 +10,17 @@ from datetime import datetime
 import sys
 sys.path.insert(0, os.path.join(os.getcwd(),"utils"))
 from hsbm import sbmmultilayer 
-from hsbm.utils.nmi import *
-from hsbm.utils.doc_clustering import *
+# from hsbm.utils.nmi import *
+# from hsbm.utils.doc_clustering import *
 
 # import gi
-from gi.repository import Gtk, Gdk
+# from gi.repository import Gtk, Gdk
 import graph_tool.all as gt
-import ast # to get list comprehension from a string
+# import ast # to get list comprehension from a string
 
 
-import functools, builtins # to impose flush=True on every print
-builtins.print = functools.partial(print, flush=True)
+# import functools, builtins # to impose flush=True on every print
+# builtins.print = functools.partial(print, flush=True)
 
 
 def fit_hyperlink_text_hsbm(edited_text, 

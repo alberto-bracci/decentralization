@@ -92,7 +92,7 @@ def topic_mixture_proportion(dict_groups, edited_text, document_partitions):
         for topic in topics:
             normalized_mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = ( mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] - avg_topic_frequency[f'topic {topic}'] ) / avg_topic_frequency[f'topic {topic}']
 
-    return mixture_proportion, normalized_mixture_proportion, avg_topic_frequency
+    return (mixture_proportion, normalized_mixture_proportion, avg_topic_frequency)
 
 
 def get_topics(
@@ -118,7 +118,7 @@ def get_topics(
             temp_df = pd.DataFrame(topic_csv_dict[key], columns=[key])
             topics_df_by_level[l] = pd.concat([topics_df_by_level[l], temp_df], ignore_index=True, axis=1)
     
-    return g_words, dict_groups_by_level, topics_df_by_level
+    return (g_words, dict_groups_by_level, topics_df_by_level)
 
 
 def get_mixture_proportion(
@@ -135,12 +135,12 @@ def get_mixture_proportion(
     except FileNotFoundError:
         mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = {}, {}, {}
         for l in h_t_doc_consensus_by_level.keys():
-            mixture_proportion_by_level[l], normalized_mixture_proportion_by_level[l], avg_topic_frequency_by_level[l] = 
+            mixture_proportion_by_level[l], normalized_mixture_proportion_by_level[l], avg_topic_frequency_by_level[l] = \
                 topic_mixture_proportion(dict_groups_by_level[l],ordered_edited_texts,h_t_doc_consensus_by_level[l])
         with gzip.open(f'{results_folder}results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level),fp)
     
-    return mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level
+    return (mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level)
 
 
 
@@ -167,4 +167,4 @@ def get_mixture_proportion_by_level(
         with gzip.open(os.path.join(results_folder, f'results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz'),'wb') as fp:
             pickle.dump((topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics),fp)
     
-    return mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics
+    return (mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics)
