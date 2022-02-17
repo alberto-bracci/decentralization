@@ -8,9 +8,12 @@ import os
 from datetime import datetime
 import sys
 sys.path.insert(0, os.path.join(os.getcwd(),"utils"))
-from hsbm import sbmmultilayer 
-from hsbm.utils.nmi import *
-from hsbm.utils.doc_clustering import *
+import sbmmultilayer 
+from nmi import *
+from doc_clustering import *
+# from hsbm import sbmmultilayer 
+# from hsbm.utils.nmi import *
+# from hsbm.utils.doc_clustering import *
 
 # import gi
 from gi.repository import Gtk, Gdk

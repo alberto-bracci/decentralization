@@ -10,7 +10,7 @@ import os
 import re
 import numpy as np
 import graph_tool.all as gt
-from . nmi import *
+from nmi import *
 import pickle
 import matplotlib.pyplot as plt
 import matplotlib
