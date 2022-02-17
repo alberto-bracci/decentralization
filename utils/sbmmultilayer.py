@@ -11,6 +11,7 @@ import os,sys
 import graph_tool.all as gt
 import numpy as np
 import pandas as pd
+import scipy.sparse
 import pickle
 from collections import Counter,defaultdict
 
@@ -250,15 +251,83 @@ class sbmmultilayer:
         # will be in word type block
         state_l_edges = state_l.get_edge_blocks()
 
+#         # OLD
+#         # Count labeled half-edges, total sum is # of edges
+#         # Number of half-edges incident on word-node w and labeled as word-group tw
+#         n_wb = np.zeros((V,B)) # will be reduced to (V, B_w)
+
+#         # Number of half-edges incident on document-node d and labeled as document-group td
+#         n_db = np.zeros((D,B)) # will be reduced to (D, B_d)
+
+#         # Number of half-edges incident on document-node d and labeled as word-group tw
+#         n_dbw = np.zeros((D,B))  # will be reduced to (D, B_w)
+
+#         # Count labeled half-edges, total sum is # of edges
+#         for e in g.edges():
+#             # We only care about edges in text network
+#             if g.ep.edgeType[e] == 0:
+#                 # z1 will have values from 1, 2, ..., B_d; document-group i.e document block that doc node is in
+#                 # z2 will have values from B_d + 1, B_d + 2,  ..., B_d + B_w; word-group i.e word block that word type node is in
+#                 z1, z2 = state_l_edges[e]
+#                 # v1 ranges from 0, 1, 2, ..., D - 1
+#                 # v2 ranges from D, ..., (D + V) - 1 (V # of word types)
+#                 v1 = int(e.source()) # document node index
+#                 v2 = int(e.target()) # word type node index
+#                 n_wb[v2-D,z2] += 1 # word type v2 is in topic z2
+#                 n_db[v1,z1] += 1 # document v1 is in doc cluster z1
+#                 n_dbw[v1,z2] += 1 # document v1 has a word in topic z2
+
+#         # Retrieve the corresponding submatrices
+#         n_db = n_db[:, np.any(n_db, axis=0)] # (D, B_d)
+#         n_wb = n_wb[:, np.any(n_wb, axis=0)] # (V, B_w)
+#         n_dbw = n_dbw[:, np.any(n_dbw, axis=0)] # (D, B_d)
+
+#         B_d = n_db.shape[1]  # number of document groups
+#         B_w = n_wb.shape[1] # number of word groups (topics)
+
+#         # Group membership of each word-type node in topic, matrix of ones or zeros, shape B_w x V
+#         # This tells us the probability of topic over word type
+#         p_tw_w = (n_wb / np.sum(n_wb, axis=1)[:, np.newaxis]).T
+
+#         # Group membership of each doc-node, matrix of ones of zeros, shape B_d x D
+#         p_td_d = (n_db / np.sum(n_db, axis=1)[:, np.newaxis]).T
+
+#         # Mixture of word-groups into documents P(t_w | d), shape B_d x D
+#         p_tw_d = (n_dbw / np.sum(n_dbw, axis=1)[:, np.newaxis]).T
+
+#         # Per-topic word distribution, shape V x B_w
+#         p_w_tw = n_wb / np.sum(n_wb, axis=0)[np.newaxis, :]
+        
+        
+        
+        # Count number of blocks of both types
+        remap_B_d = {}
+        B_d = 0
+        remap_B_w = {}
+        B_w = 0
+        for e in g.edges():
+            # We only care about edges in text network
+            if g.ep.edgeType[e] == 0:
+                # z1 will have values from 0, 1, 2, ..., B_d - 1; document-group i.e document block that doc node is in
+                # z2 will have values from B_d, B_d + 1, B_d + 2,  ..., B_d + B_w - 1; word-group i.e word block that word type node is in
+                z1, z2 = state_l_edges[e]
+                if z1 not in remap_B_d:
+                    remap_B_d[z1] = B_d
+                    B_d += 1
+                if z2 not in remap_B_w:
+                    remap_B_w[z2] = B_w
+                    B_w += 1
+        print(f"B {B}, B_d {B_d}, B_w {B_w}")
+        
         # Count labeled half-edges, total sum is # of edges
         # Number of half-edges incident on word-node w and labeled as word-group tw
-        n_wb = np.zeros((V,B)) # will be reduced to (V, B_w)
+        n_wb = scipy.sparse.dok_matrix((V,B_w))
 
         # Number of half-edges incident on document-node d and labeled as document-group td
-        n_db = np.zeros((D,B)) # will be reduced to (D, B_d)
+        n_db = scipy.sparse.dok_matrix((D,B_d))
 
         # Number of half-edges incident on document-node d and labeled as word-group tw
-        n_dbw = np.zeros((D,B))  # will be reduced to (D, B_w)
+        n_dbw = scipy.sparse.dok_matrix((D,B_w))
 
         # Count labeled half-edges, total sum is # of edges
         for e in g.edges():
@@ -271,30 +340,43 @@ class sbmmultilayer:
                 # v2 ranges from D, ..., (D + V) - 1 (V # of word types)
                 v1 = int(e.source()) # document node index
                 v2 = int(e.target()) # word type node index
-                n_wb[v2-D,z2] += 1 # word type v2 is in topic z2
-                n_db[v1,z1] += 1 # document v1 is in doc cluster z1
-                n_dbw[v1,z2] += 1 # document v1 has a word in topic z2
-
-        # Retrieve the corresponding submatrices
-        n_db = n_db[:, np.any(n_db, axis=0)] # (D, B_d)
-        n_wb = n_wb[:, np.any(n_wb, axis=0)] # (V, B_w)
-        n_dbw = n_dbw[:, np.any(n_dbw, axis=0)] # (D, B_d)
-
-        B_d = n_db.shape[1]  # number of document groups
-        B_w = n_wb.shape[1] # number of word groups (topics)
+                n_wb[v2-D,remap_B_w[z2]] += 1 # word type v2 is in topic z2
+                n_db[v1,remap_B_d[z1]] += 1 # document v1 is in doc cluster z1
+                n_dbw[v1,remap_B_w[z2]] += 1 # document v1 has a word in topic z2                    
+        
+#         n_wb = n_wb_sparse.tocsr()
+#         n_db = n_db_sparse.tocsr()
+#         n_dbw = n_dbw_sparse.tocsr()
 
         # Group membership of each word-type node in topic, matrix of ones or zeros, shape B_w x V
         # This tells us the probability of topic over word type
-        p_tw_w = (n_wb / np.sum(n_wb, axis=1)[:, np.newaxis]).T
+        p_tw_w = n_wb.copy()
+        tmp_sum = p_tw_w.sum(axis=1)
+        for row,col in p_tw_w.keys():
+            sum_row = tmp_sum[row,0]
+            p_tw_w[row,col] = p_tw_w[row,col] / sum_row
+        p_tw_w = p_tw_w.T
 
         # Group membership of each doc-node, matrix of ones of zeros, shape B_d x D
-        p_td_d = (n_db / np.sum(n_db, axis=1)[:, np.newaxis]).T
+        tmp_sum = n_db.sum(axis=1)
+        for row,col in n_db.keys():
+            sum_row = tmp_sum[row,0]
+            n_db[row,col] = n_db[row,col] / sum_row
+        p_td_d = n_db.T
 
         # Mixture of word-groups into documents P(t_w | d), shape B_d x D
-        p_tw_d = (n_dbw / np.sum(n_dbw, axis=1)[:, np.newaxis]).T
+        tmp_sum = n_dbw.sum(axis=1)
+        for row,col in n_dbw.keys():
+            sum_row = tmp_sum[row,0]
+            n_dbw[row,col] = n_dbw[row,col] / sum_row
+        p_tw_d = n_db.T
 
         # Per-topic word distribution, shape V x B_w
-        p_w_tw = n_wb / np.sum(n_wb, axis=0)[np.newaxis, :]
+        tmp_sum = n_wb.sum(axis=0)
+        for row,col in n_wb.keys():
+            sum_col = tmp_sum[0,col]
+            n_dbw[row,col] = n_wb[row,col] / sum_col
+        p_w_tw = n_wb.T
 
         result = {}
         result['Bd'] = B_d # Number of document groups
