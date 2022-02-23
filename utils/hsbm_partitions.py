@@ -25,13 +25,13 @@ def find_highest_non_trivial_group(
         Find the highest level with more than just 1 group.
         
         Args:
-            hyperlink_g: 
-            num_levels: 
-            curr_hsbm: 
+            hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
+            num_levels: number of levels in the curr_hsbm (int)
+            curr_hsbm: hierarchical stochastick block model to analyse (sbmmultilayer.sbmmultilayer)
         
         Returns:
-            doc_partitions:
-            final_l: 
+            doc_partitions: list with only one list made of the corresponding cluster (int) for each doc at the highest non trivial level (list of list)
+            final_l: highest level with more than just 1 group (int)
     '''
     top_levels = curr_hsbm.n_levels
     temp_l = 0
@@ -54,38 +54,39 @@ def find_highest_non_trivial_group(
         temp_l += 1
     highest_l = [final_l]
     doc_partitions, doc_num_groups, doc_entropies = clustering_info.collect_info('1-layer-doc', curr_hsbm.g, highest_l, curr_hsbm.state)
-    print(f'\tWe chose level {final_l} out of levels {num_levels}')
-    print('\tNumber of groups', doc_num_groups)
+    print(f'\tWe chose level {final_l} out of {num_levels} levels')
+    print('\tNumber of doc-groups:', doc_num_groups)
     return doc_partitions, final_l
 
 
-
-def get_hsbm_partitions(
+def get_hsbm_highest_level_partitions(
     hyperlink_g,
     model_states, 
 ):
     '''
-        For each iteration, retrieve the partitions.
+        For each iteration provided, retrieve the partitions at their highest non trivial level.
 
         Args:
-            hyperlink_g: 
-            model_states: 
+            hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
+            model_states: list of all the states, loaded from dir_list, of all iterations (list of hsbm.state)
 
         Returns:
-            - model_partitions: list of lists of length the number of iterations used in the algorithm. Each sublist contains the positions of each node in the partition with highest non-trivial level
-            - levels: list of the highest non-trivial level for each iteration of the algorithm.
+            model_partitions: list of lists of length the number of iterations used in the algorithm. Each sublist contains the positions of each node in the partition with highest non-trivial level (list of lists)
+            levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
     '''
     model_partitions = []
     levels = [] # store highest non-trivial level
     # Retrieve partitions
-    for i in range(len(model_states)):
+    for i,curr_hsbm in enumerate(model_states):
         print('Iteration %d'%(i), flush = True)
-        curr_hsbm = model_states[i] #retrieve hSBM model       
         # Figure out top layer
         top_levels = curr_hsbm.n_levels
         print('\tNumber of levels', top_levels)
-        model_partition, highest_level = find_highest_non_trivial_group(hyperlink_g,
-                                                                        top_levels, curr_hsbm)
+        model_partition, highest_level = find_highest_non_trivial_group(
+            hyperlink_g,
+            top_levels,
+            curr_hsbm
+        )
         model_partitions.append(model_partition[0])
         levels.append(highest_level)
     return model_partitions, levels
@@ -97,16 +98,16 @@ def get_highest_level_hsbm_partitions_from_iterations(
     results_folder,
 ):
     '''
-        For each iteration, retrieve the partitions.
+        For each iteration, retrieve the partitions at their highest non trivial level.
         
         Args:
-            hyperlink_g: 
-            dir_list: 
-            results_folder: 
+            hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
+            dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
+            results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
         
         Returns:
-            - model_partitions: list of lists of length the number of iterations used in the algorithm. Each sublist contains the positions of each node in the partition with highest non-trivial level
-            - levels: list of the highest non-trivial level for each iteration of the algorithm.
+            model_partitions: list of lists of length the number of iterations used in the algorithm. Each sublist contains the positions of each node in the partition with highest non-trivial level (list of lists)
+            levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
     '''
     # Retrieve partitions assigned to documents in each run. Also save index of highest non-trivial level.
     try:
@@ -128,7 +129,10 @@ def get_highest_level_hsbm_partitions_from_iterations(
                     with gzip.open(os.path.join(dir_,f'results_fit_greedy.pkl.gz'),'rb') as fp:
                         tmp_hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
                     print(f'Loaded states from {dir_}', flush=True)
-                    tmp_hyperlink_text_hsbm_partitions, tmp_levels = get_hsbm_partitions(hyperlink_g, tmp_hyperlink_text_hsbm_states)
+                    tmp_hyperlink_text_hsbm_partitions, tmp_levels = get_hsbm_partitions(
+                        hyperlink_g, 
+                        tmp_hyperlink_text_hsbm_states
+                    )
                     print(f'Computed partitions from {dir_}', flush=True)
                 except FileNotFoundError:
                     print(f'PARTITIONS OR STATES NOT FOUND IN {dir_}', flush=True)
@@ -154,17 +158,17 @@ def get_hsbm_partitions_from_iterations(
     results_folder,
 ):
     '''
-        Compute the consensus partition assignment to document nodes over all the iterations.
+        Compute the consensus partition assigned to document nodes over all the iterations.
         
         Args:
-            hyperlink_g: 
-            dir_list: 
-            levels: 
-            results_folder: 
+            hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
+            dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
+            levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
+            results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             
         Returns: 
-            hyperlink_text_hsbm_partitions_by_level: 
-            time_duration: 
+            hyperlink_text_hsbm_partitions_by_level: dict of level:list (one for each iteration with that level) of lists, containing the group assignment of each text (dict)
+            time_duration: datetime difference from start to finish of the function (datetime object)
     '''
     start = datetime.now()
     try:
@@ -213,6 +217,7 @@ def get_hsbm_partitions_from_iterations(
                         count += 1
                         print('Iteration %d'%count, flush=True)
                         for l in range(max(levels)+1):
+                            # TODO CHECK
                             tmp = clustering_info.collect_info2('1-layer-doc', curr_hsbm.g, [l], curr_hsbm.state)
 #                             hyperlink_text_hsbm_partitions_by_level_info[l].append(tmp)
                             hyperlink_text_hsbm_partitions_by_level[l].append(tmp[0][0])                    
@@ -241,18 +246,19 @@ def get_word_type_blocks(
     IDs
 ):
     '''
-        Retrieve the block assignment of WORD types for the model.
+        Retrieves the block assignment of word types for the model. 
+        Results are lists because are intended to collect results from multiple iterations.
         
         Args:
-            h_t_state: 
-            h_t_graph: 
-            level: 
-            IDs: 
+            h_t_state: state of the hsbm (hsbm.state)
+            h_t_graph: graph of the hsbm (hsbm.g)
+            level: level chosen to get the blocks (int)
+            IDs: list of the unique paper IDs kept after filtering, used to create the hsbm (list of str)
         
         Returns:
-            partitions: 
-            num_of_groups: 
-            entropies: 
+            partitions: list of list containing the positions of each node in the partition at the selected level of the state (list of list of ints)
+            num_of_groups: list with the number of groups in the partition of the state at the selected level (list of int)
+            entropies: list of entropy of the selected hsbm, representing the minimum description length of inferred state (list of float)
     '''
     partitions = []
     num_of_groups = []
@@ -286,18 +292,18 @@ def get_hsbm_word_partitions_from_iterations(
     IDs,
 ):
     '''
-        
+        Get all word group assignments at all levels and for all hsbm iterations in dir_list.
         
         Args:
-            hyperlink_g: 
-            dir_list: 
-            levels: 
-            results_folder: 
-            IDs: 
+            hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
+            dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
+            levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
+            results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
+            IDs: list of the unique paper IDs kept after filtering, used to create the hsbm (list of str)
         
         Returns:
-            H_T_word_hsbm_partitions_by_level: 
-            H_T_word_hsbm_num_groups_by_level: 
+            H_T_word_hsbm_partitions_by_level: dict {level: [[partition[paper] for paper in papers] for i in iterations]} containing for each level the partition list of each iteration (dict)
+            H_T_word_hsbm_num_groups_by_level: dict {level: [num_groups for iteration in iterations]} containing the number of groups in the partition of the iterations for each level (dict)
     '''
     try:
         with gzip.open(os.path.join(results_folder,f'results_fit_greedy_partitions_words_all.pkl.gz'),'rb') as fp:
@@ -359,15 +365,15 @@ def get_consensus_nested_partition(
     H_T_word_hsbm_partitions_by_level, 
 ):
     '''
-        As parameter it takes a dictionary {level: [[partition[paper] for paper in papers] for i in iterations]}.
-        It calculates the nested consensus partition (reordered correctly)
+        It calculates the nested consensus partition (reordered correctly). 
+        If words are provided, the partition is of words (topics).
+        If docs are provided, the partition is of docs (clusters).
         
         Args:
-            H_T_word_hsbm_partitions_by_level:
+            H_T_word_hsbm_partitions_by_level: dict {level: [[partition[paper] for paper in papers] for i in iterations]} containing for each level the partition list of each iteration (dict)
         
         Returns:
-            h_t_word_consensus_by_level: 
-            hyperlink_words_hsbm_partitions_by_level: 
+            h_t_word_consensus_by_level: dict of level as key and an array of same length as H_T_word_hsbm_partitions_by_level with value the cluster of that element at that level on the computed consensus partition (dict, level:np.array)
     '''
     hierarchy_words_partitions = {}
     for l in range(max(H_T_word_hsbm_partitions_by_level),0,-1):
@@ -392,14 +398,12 @@ def get_consensus_nested_partition(
 #             # TODO AGGIUNTO ADESSO, PROVA
 #             if l == 1:
 #                 H_T_word_hsbm_partitions_by_level[0][iteration] = tmp2_words.copy()
-#             # FINE TODO
             for i in range(len(tmp2_words)):
                 hierarchy_words_partitions[l][iteration][tmp1_words[i]].add(tmp2_words[i])
 
     hyperlink_words_hsbm_partitions_by_level = {0:H_T_word_hsbm_partitions_by_level[0]}
 
     for l in range(1,len(H_T_word_hsbm_partitions_by_level)):
-#         print(f'\tlevel {l}, len(hyperlink_words_hsbm_partitions_by_level[l-1]) {len(hyperlink_words_hsbm_partitions_by_level[l-1])}, len(hierarchy_words_partitions[l]) {len(hierarchy_words_partitions[l])}')
         hyperlink_words_hsbm_partitions_by_level[l] = []
         for iteration in range(len(hierarchy_words_partitions[l])):
             tmp_list = -np.ones(len(set(hyperlink_words_hsbm_partitions_by_level[l-1][iteration])))
@@ -415,7 +419,7 @@ def get_consensus_nested_partition(
     for l in range(1,len(c_w)):
         h_t_word_consensus_by_level[l] = np.array([c_w[l][h_t_word_consensus_by_level[l-1][word]] for word in range(len(hyperlink_words_hsbm_partitions_by_level[0][0]))])
     
-    return h_t_word_consensus_by_level, hyperlink_words_hsbm_partitions_by_level
+    return h_t_word_consensus_by_level
 
 
 def get_consensus(
@@ -427,20 +431,37 @@ def get_consensus(
     filter_label = ''
 ):
     '''
-        
+        It calculates the nested consensus partition (reordered correctly), computes some statistics and summary. 
         
         Args:
-            dir_list: 
+            dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
             hyperlink_text_hsbm_partitions_by_level: 
-            H_T_word_hsbm_partitions_by_level: 
-            ordered_paper_ids: 
-            results_folder: 
-            filter_label: 
-            
+            H_T_word_hsbm_partitions_by_level: dict {level: [[partition[paper] for paper in papers] for i in iterations]} containing for each level the partition list of each iteration (dict)
+            ordered_paper_ids: ordered list of paper_ids in hyperlink_g, with the same ordering as hyperlink_g.vp['name'] (list of str, i.e., list(hyperlink_g.vp['name']))
+            results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
+            filter_label: possible label to use if a special filtering is applied (str)
+        
         Returns:
-            h_t_doc_consensus_by_level: 
-            h_t_word_consensus_by_level: 
-            h_t_consensus_summary_by_level: 
+            h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
+            h_t_word_consensus_by_level: dict of level as key and an array of length the number of words in the hsbm with value the cluster at that level (dict, level:np.array)
+            h_t_consensus_summary_by_level: dict in which for each level there are statistics on group membership of nodes from the inferred state. These keys are:
+                - B_d, int, number of doc-groups
+                - B_w, int, number of word-groups
+                - p_td_d, scipy.sparse.dok_matrix (B_d, D);
+                          doc-group membership:
+                          # group membership of each doc-node, matrix of ones and zeros, shape B_d x D
+                          prob that doc-node d belongs to doc-group td: P(td | d)
+                - p_tw_w, scipy.sparse.dok_matrix (B_w, V);
+                          word-group membership:
+                          # group membership of each word-node, matrix of ones or zeros, shape B_w x V
+                          prob that word-node w belongs to word-group tw: P(tw | w)
+                - p_tw_d, scipy.sparse.dok_matrix (B_w, D);
+                          doc-topic mixtures:
+                          # Mixture of word-groups into documents P(t_w | d), shape B_w x D
+                          prob of word-group tw in doc d P(tw | d)
+                - p_w_tw, scipy.sparse.dok_matrix (V, B_w);
+                          per-topic word distribution, shape V x B_w
+                          prob of word w given topic tw P(w | tw)
     '''
     try:
         with gzip.open(f'{results_folder}results_fit_greedy_partitions_consensus_all{filter_label}.pkl.gz','rb') as fp:
@@ -448,9 +469,9 @@ def get_consensus(
         print('Loaded consensus from file', flush=True)
     except FileNotFoundError:
         print('Calculating nested consensus partition among docs', flush=True)
-        h_t_doc_consensus_by_level, hyperlink_docs_hsbm_partitions_by_level = get_consensus_nested_partition(hyperlink_text_hsbm_partitions_by_level)
+        h_t_doc_consensus_by_level = get_consensus_nested_partition(hyperlink_text_hsbm_partitions_by_level)
         print('Calculating nested consensus partition among words', flush=True)
-        h_t_word_consensus_by_level, hyperlink_words_hsbm_partitions_by_level = get_consensus_nested_partition(H_T_word_hsbm_partitions_by_level)
+        h_t_word_consensus_by_level = get_consensus_nested_partition(H_T_word_hsbm_partitions_by_level)
         print('Loading a state', flush=True)
         for dir_ in dir_list:
             try:
@@ -466,9 +487,7 @@ def get_consensus(
                 print('Removing level %d because it has only 1 cluster of docs and 1 of words'%l, flush=True)
                 del h_t_word_consensus_by_level[l]
                 del h_t_doc_consensus_by_level[l]
-                del hyperlink_words_hsbm_partitions_by_level[l]
                 del hyperlink_text_hsbm_partitions_by_level[l]
-
 
         print('\nCalculating summary', flush=True)
 
@@ -503,62 +522,6 @@ def get_consensus(
 
             # Number of blocks
             B = len(set(h_t_word_consensus_by_level[l])) + len(set(h_t_doc_consensus_by_level[l]))
-
-        # TODO: check
-        #     # OLD
-        #     # Count labeled half-edges, total sum is # of edges
-        #     # Number of half-edges incident on word-node w and labeled as word-group tw
-        #     n_wb = np.zeros((V,B)) # will be reduced to (V, B_w)
-
-        #     # Number of half-edges incident on document-node d and labeled as document-group td
-        #     n_db = np.zeros((D,B)) # will be reduced to (D, B_d)
-
-        #     # Number of half-edges incident on document-node d and labeled as word-group tw
-        #     n_dbw = np.zeros((D,B))  # will be reduced to (D, B_w)
-
-        #     # All graphs created the same for each H+T model
-        #     for e in hyperlink_text_hsbm_states[0].g.edges():
-        #         # Each edge will be between a document node and word-type node
-        #         if hyperlink_text_hsbm_states[0].g.ep.edgeType[e] == 0:        
-        #             # v1 ranges from 0, 1, 2, ..., D - 1
-        #             # v2 ranges from D, ..., (D + V) - 1 (V # of word types)
-
-        #             v1 = int(e.source()) # document node index
-        #             v2 = int(e.target()) # word type node index # THIS MAKES AN IndexError!
-        #             v1_name = hyperlink_text_hsbm_states[0].g.vp['name'][v1]
-        #             v2_name = hyperlink_text_hsbm_states[0].g.vp['name'][v2]
-
-        #             # z1 will have values from 1, 2, ..., B_d; document-group i.e document block that doc node is in 
-        #             # z2 will have values from B_d + 1, B_d + 2,  ..., B_d + B_w; word-group i.e word block that word type node is in
-        #             # Recall that h_t_word_consensus starts at 0 so need to -120
-
-        #             z1, z2 = h_t_doc_consensus_by_level[l][ordered_paper_ids.index(v1_name)], h_t_word_consensus_by_level[l][v2-D]
-
-        #             n_wb[v2-D,z2] += 1 # word type v2 is in topic z2
-        #             n_db[v1,z1] += 1 # document v1 is in doc cluster z1
-        #             n_dbw[v1,z2] += 1 # document v1 has a word in topic z2
-
-        #     n_db = n_db[:, np.any(n_db, axis=0)] # (D, B_d)
-        #     n_wb = n_wb[:, np.any(n_wb, axis=0)] # (V, B_w)
-        #     n_dbw = n_dbw[:, np.any(n_dbw, axis=0)] # (D, B_d)
-
-        #     B_d = n_db.shape[1]  # number of document groups
-        #     B_w = n_wb.shape[1] # number of word groups (topics)
-
-        #     # Group membership of each word-type node in topic, matrix of ones or zeros, shape B_w x V
-        #     # This tells us the probability of topic over word type
-        #     p_tw_w = (n_wb / np.sum(n_wb, axis=1)[:, np.newaxis]).T
-
-        #     # Group membership of each doc-node, matrix of ones of zeros, shape B_d x D
-        #     p_td_d = (n_db / np.sum(n_db, axis=1)[:, np.newaxis]).T
-
-        #     # Mixture of word-groups into documents P(t_w | d), shape B_d x D
-        #     p_tw_d = (n_dbw / np.sum(n_dbw, axis=1)[:, np.newaxis]).T
-
-        #     # Per-topic word distribution, shape V x B_w
-        #     p_w_tw = n_wb / np.sum(n_wb, axis=0)[np.newaxis, :]
-
-
 
             # Count number of blocks of both types
             remap_B_d = {}
@@ -674,18 +637,18 @@ def get_hierarchy(
     filter_label = '',
 ):
     '''
-        
+        Recovers the hierarchy of clusters, both docs and words, from the consensus partition at each level.
         
         Args:
-            highest_non_trivial_level: 
-            h_t_doc_consensus_by_level: 
-            h_t_word_consensus_by_level: 
-            results_folder: 
-            filter_label: 
+            highest_non_trivial_level: highest level of the hsbm consensus partition for which there are more than 1 groups (int)
+            h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
+            h_t_word_consensus_by_level: dict of level as key and an array of length the number of words in the hsbm with value the cluster at that level (dict, level:np.array)
+            results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
+            filter_label: possible label to use if a special filtering is applied (str)
         
         Returns:
-            hierarchy_docs: 
-            hierarchy_words: 
+            hierarchy_docs: dict of dicts (by level), in which, each key is a doc-cluster in the current level and values is the set of doc-clusters under the key doc-cluster at one lower level (dict of dicts)
+            hierarchy_words: dict of dicts (by level), in which, each key is a word-cluster in the current level and values is the set of word-clusters under the key word-cluster at one lower level (dict of dicts)
     '''
     # Recover Hierarchy
     try:

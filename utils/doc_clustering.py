@@ -80,6 +80,7 @@ class doc_clustering:
 
         return (partitions, num_of_groups, entropies)
     
+    # TODO CHECK
     def collect_info2(self, nType, sbm_graph, highest_l, state, draw=False):
         """
         Retrieve the partitions, number of groups, and entropies for the hyperlink layer 

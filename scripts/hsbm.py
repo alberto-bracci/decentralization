@@ -35,7 +35,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Filtering the documents and creating the GT network.')
 
 parser.add_argument('-data', '--dataset_path', type=str,
-    help='Path to the dataset with respect to the repo root folder, e.g. "data/2021-09-01/decentralization/" (do NOT start with "/" and DO end with "/") [REQUIRED]',
+    help='Path to the whole dataset with respect to the repo root folder, e.g. "data/2021-09-01/decentralization/" (do NOT start with "/" and DO end with "/") [REQUIRED]',
     required=True)
 parser.add_argument('-analysis_results_subfolder', '--analysis_results_subfolder', type=str,
     help='If not changed, if do_analysis==0 it is set automatically to the iteration subfolder, while if do_analysis==1 it is the same as dataset_path.\
@@ -66,7 +66,7 @@ parser.add_argument('-stop', '--stop_at_fit', type=int,
 parser.add_argument('-prep', '--do_only_prep', type=int,
     help='If do_only_prep is 1, it does only the preparation of all files needed to do the hsbm and the following analysis. [default 0]',
     default=0)
-parser.add_argument('-lev_kf', '--first_level_knowledge_flow', type=int,
+parser.add_argument('-lev_kf', '--lowest_level_knowledge_flow', type=int,
     help='Calculate the knowledge flows starting from this first level. [default 2]',
     default=2)
 
@@ -87,7 +87,7 @@ if do_analysis == 0:
     ID_iteration_list = [ID_iteration]
 stop_at_fit = arguments.stop_at_fit == 1
 do_only_prep = arguments.do_only_prep == 1
-first_level_knowledge_flow = arguments.first_level_knowledge_flow
+lowest_level_knowledge_flow = arguments.lowest_level_knowledge_flow
 
 
 # Parameters needed in the process.
@@ -390,7 +390,7 @@ run_knowledge_flow_analysis(
     h_t_doc_consensus_by_level = h_t_doc_consensus_by_level,
     hyperlink_g = hyperlink_g,
     ordered_paper_ids = ordered_paper_ids,
-    first_level_knowledge_flow = first_level_knowledge_flow,
+    lowest_level_knowledge_flow = lowest_level_knowledge_flow,
     highest_non_trivial_level = highest_non_trivial_level,
     dataset_path = dataset_path,
     results_folder = results_folder,
