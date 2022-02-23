@@ -2,6 +2,7 @@
 corpus/
 data/
 figures/
+old/
 *.sh.o*
 *.sh.e*
 *foo.gt.gz
