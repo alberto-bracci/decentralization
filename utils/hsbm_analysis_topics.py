@@ -5,32 +5,23 @@ import pickle
 import pandas as pd
 import numpy as np
 import os
-# move to repo root directory
-# from datetime import datetime
-# import sys
-# sys.path.insert(0, os.path.join(os.getcwd(),"utils"))
-# from hsbm import sbmmultilayer 
-# from hsbm.utils.nmi import *
-# from hsbm.utils.doc_clustering import *
-
-# import gi
-# from gi.repository import Gtk, Gdk
-# import graph_tool.all as gt
-# import ast # to get list comprehension from a string
-# import scipy
 
 
-# import functools, builtins # to impose flush=True on every print
-# builtins.print = functools.partial(print, flush=True)
-
-
-
-def get_topics_h_t_consensus_model(groups, 
-                                   words, 
-                                   n=10, 
-                                  ):
+def get_topics_h_t_consensus_model(
+    groups, 
+    words, 
+    n=10, 
+):
     '''
-    Retrieve topics in consensus partition for H+T model.
+        Retrieve topics in consensus partition for H+T model.
+        
+        Args:
+            groups: 
+            words: 
+            n: 
+        
+        Returns:
+            dict_group_words: 
     '''
     dict_groups = groups
     Bw = dict_groups['Bw'] # number of word-groups
@@ -49,8 +40,24 @@ def get_topics_h_t_consensus_model(groups,
         dict_group_words[tw] = list_words_tw
     return dict_group_words    
 
-def topic_mixture_proportion(dict_groups, edited_text, document_partitions):
-
+def topic_mixture_proportion(
+    dict_groups, 
+    edited_text, 
+    document_partitions
+):
+    '''
+        
+        
+        Args:
+            dict_groups: 
+            edited_text: 
+            document_partitions: 
+        
+        Returns:
+            mixture_proportion: 
+            normalized_mixture_proportion: 
+            avg_topic_frequency: 
+    '''
     topics = dict_groups.keys()
     partitions = np.unique(document_partitions)
 
@@ -96,10 +103,32 @@ def topic_mixture_proportion(dict_groups, edited_text, document_partitions):
 
 
 def get_topics(
-    hyperlink_text_hsbm_states,
+    dir_list,
     h_t_consensus_summary_by_level,
     h_t_doc_consensus_by_level,
 ):
+    '''
+        
+        
+        Args:
+            dir_list: 
+            h_t_consensus_summary_by_level: 
+            h_t_doc_consensus_by_level: 
+        
+        Returns:
+            g_words: 
+            dict_groups_by_level: 
+            topics_df_by_level: 
+    '''
+    print('Loading a state', flush=True)
+    for dir_ in dir_list:
+        try:
+            with gzip.open(os.path.join(dir_,f'results_fit_greedy.pkl.gz'),'rb') as fp:
+                hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
+            print(f'Loaded state from dir {dir_}', flush=True)
+            break
+        except FileNotFoundError:
+            continue 
     g_words = [hyperlink_text_hsbm_states[0].g.vp['name'][v] for v in hyperlink_text_hsbm_states[0].g.vertices() if hyperlink_text_hsbm_states[0].g.vp['kind'][v]==1   ]
     dict_groups_by_level = {l:get_topics_h_t_consensus_model(h_t_consensus_summary_by_level[l], g_words, n=1000000) for l in h_t_doc_consensus_by_level.keys()}
 
@@ -129,6 +158,22 @@ def get_mixture_proportion(
     results_folder,
     filter_label = ''
 ):
+    '''
+        
+        
+        Args:
+            h_t_doc_consensus_by_level: 
+            dict_groups_by_level: 
+            ordered_edited_texts: 
+            topics_df_by_level: 
+            results_folder: 
+            filter_label: 
+        
+        Returns:
+            mixture_proportion_by_level: 
+            normalized_mixture_proportion_by_level: 
+            avg_topic_frequency_by_level: 
+    '''
     try:
         with gzip.open(f'{results_folder}results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','rb') as fp:
             topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = pickle.load(fp)
@@ -153,6 +198,23 @@ def get_mixture_proportion_by_level(
     results_folder,
     filter_label = ''
 ):
+    '''
+        
+        
+        Args:
+            h_t_doc_consensus_by_level: 
+            dict_groups_by_level: 
+            ordered_edited_texts: 
+            topics_df_by_level: 
+            highest_non_trivial_level: 
+            results_folder: 
+            filter_label: 
+        
+        Returns:
+            mixture_proportion_by_level_partition_by_level_topics: 
+            normalized_mixture_proportion_by_level_partition_by_level_topics: 
+            avg_topic_frequency_by_level_partition_by_level_topics: 
+    '''
     try:
         with gzip.open(os.path.join(results_folder, f'results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz'),'rb') as fp:
             topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = pickle.load(fp)

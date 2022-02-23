@@ -10,46 +10,49 @@ from datetime import datetime
 import sys
 sys.path.insert(0, os.path.join(os.getcwd(),"utils"))
 import sbmmultilayer 
-# from nmi import *
-# from doc_clustering import *
-# from hsbm import sbmmultilayer 
-# from hsbm.utils.nmi import *
-# from hsbm.utils.doc_clustering import *
-
-# import gi
-# from gi.repository import Gtk, Gdk
 import graph_tool.all as gt
-# import ast # to get list comprehension from a string
 
 
-# import functools, builtins # to impose flush=True on every print
-# builtins.print = functools.partial(print, flush=True)
-
-
-def fit_hyperlink_text_hsbm(edited_text, 
-                            titles, 
-                            hyperlinks, 
-                            N_iter, 
-                            results_folder, 
-                            filename_fit = f'results_fit_greedy_tmp.pkl.gz', 
-                            SEED_NUM = 1, 
-                            stop_at_fit = False,
-                            number_iterations_MC_equilibrate = 5000, 
-                           ):
+def fit_hyperlink_text_hsbm(
+    edited_text, 
+    titles, 
+    hyperlinks, 
+    N_iter, 
+    results_folder, 
+    filename_fit = f'results_fit_greedy_tmp.pkl.gz', 
+    SEED_NUM = 1, 
+    stop_at_fit = False,
+    number_iterations_MC_equilibrate = 5000, 
+):
     '''
-    Fit N_iter iterations of doc-network sbm on dataset through agglomerative heuristic
-    and simulated annealing.
-    
-    If stop_at_fit is True, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate.
-    If the temporary file is present, it is loaded by default.
+        Fit N_iter iterations of doc-network sbm on dataset through agglomerative heuristic and simulated annealing.
+        If stop_at_fit is True, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate.
+        If the temporary file is present, it is loaded by default.
+
+        Args:
+            edited_text: list of tokenized filtered texts of the filtered papers (list of lists of words)
+            titles: list of IDs or titles to give as name of the docs (list of words)
+            hyperlinks: list of tuples (node_1, node_2) representing links from node_1 to node_2 in the citation_layer of the model (list of tuples of two elements)
+            N_iter: number of different iterations to create hsbm (int)
+            results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
+            filename_fit: filename to give to the temporary fit file before the equilbrate
+            SEED_NUM: seed number to use to create the sbmmultilayer.sbmmultilayer (int)
+            stop_at_fit: if True, it stops the function before doing the equilibrate; if False, it continues with the equilibrate (bool)
+            number_iterations_MC_equilibrate: number of iterations of markov chain montecarlo equilibrations to do (int)
+        
+        Returns:
+            if stop_at_fit == True:
+                None
+            else:
+                hyperlink_text_hsbm_post: list of hsbm generated from the 2-layer network after fit and mcmc_equilibrate (list of hsbm)
     '''
     hyperlink_text_hsbm_post = []
-
+    # Repeat for all N_iter, creating a different fit at each iteration, then used to create the consensus partititions.
     for _ in range(N_iter):
         print(f'Iteration {_}')
         # Construct 2-layer network hyperlink-text model and fit multilayer SBM.
-        
         try: 
+            # If stop_at_fit==False, this function is called to do the equilibrate, and checks if the temporary fit file is done already
             print('Loading temporary results from previous run...',flush=True)
             with gzip.open(f'{results_folder}{filename_fit}', 'rb') as fp:
                 hyperlink_text_hsbm,tmp = pickle.load(fp)
@@ -57,7 +60,7 @@ def fit_hyperlink_text_hsbm(edited_text,
             print(e)
             
             hyperlink_text_hsbm = sbmmultilayer.sbmmultilayer(random_seed=SEED_NUM)
-            hyperlink_text_hsbm.make_graph(edited_text, titles, hyperlinks, multiplier=1) # TODO TOGLI MULTIPLIER
+            hyperlink_text_hsbm.make_graph(edited_text, titles, hyperlinks)
             
             start = datetime.now()
             print('Starting fit at: ',start,flush=True)
@@ -68,6 +71,7 @@ def fit_hyperlink_text_hsbm(edited_text,
                 pickle.dump((hyperlink_text_hsbm,end-start),fp)
         
         if stop_at_fit == True:
+            # If stop_at_fit==True, this function stops at the fit, without doing the equilibration
             return None
         
         # Retrieve state from simulated annealing hSBM
@@ -85,18 +89,24 @@ def fit_hyperlink_text_hsbm(edited_text,
     return hyperlink_text_hsbm_post
 
 
-def run_multiflip_greedy_hsbm(hsbm_model, 
-                              number_iterations_MC_equilibrate, 
-                             ):
+def run_multiflip_greedy_hsbm(
+    hsbm_model, 
+    number_iterations_MC_equilibrate, 
+):
     '''
-    Run greedy merge-split on multilayer SBM.
-    Return:
-        hsbm_state - State associated to SBM at the end.
+        Run greedy merge-split on multilayer SBM, forcing number_iterations_MC_equilibrate iterations for the mcmc_equilibrate.
+        
+        Args:
+            hsbm_model: hierarchical stochastick block model to equilibrate (sbmmultilayer.sbmmultilayer)
+            number_iterations_MC_equilibrate: number of iterations of markov chain montecarlo equilibrations to do (int)
+        
+        Returns:
+            hsbm_state: state associated to SBM at the end (sbmmultilayer.sbmmultilayer.state)
     '''
     S1 = hsbm_model.mdl
     print(f'Initial entropy is {S1}')
-
-#     gt.mcmc_equilibrate(hsbm_model.state, force_niter=40, mcmc_args=dict(beta=np.inf),history=True,verbose=True)    
+    
+    # Start equilibrate
     gt.mcmc_equilibrate(hsbm_model.state, mcmc_args=dict(beta=np.inf),history=True,verbose=True,force_niter=number_iterations_MC_equilibrate,multiflip=False)    
     
     S2 = hsbm_model.state.entropy()

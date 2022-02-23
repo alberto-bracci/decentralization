@@ -6,24 +6,6 @@ import pandas as pd
 import numpy as np
 import os
 
-# move to repo root directory
-# from datetime import datetime
-# import sys
-# sys.path.insert(0, os.path.join(os.getcwd(),"utils"))
-# from hsbm import sbmmultilayer 
-# from hsbm.utils.nmi import *
-# from hsbm.utils.doc_clustering import *
-
-# import gi
-# from gi.repository import Gtk, Gdk
-# import graph_tool.all as gt
-# import ast # to get list comprehension from a string
-# import scipy
-
-
-# import functools, builtins # to impose flush=True on every print
-# builtins.print = functools.partial(print, flush=True)
-
 
 def assign_partition(
     h_t_doc_consensus_by_level,
@@ -32,11 +14,23 @@ def assign_partition(
     gt_partition_level,
     all_docs_dict,
 ):
+    '''
+        
+        
+        Args:
+            h_t_doc_consensus_by_level: 
+            hyperlink_g: 
+            ordered_paper_ids: 
+            gt_partition_level: 
+            all_docs_dict: 
+        
+        Returns:
+            assigned_partition: 
+            all_partitions: 
+    '''
     hyperlink_text_consensus_partitions_by_level = {}
     for l in h_t_doc_consensus_by_level.keys():
-#         print(l,flush=True)
         hyperlink_text_consensus_partitions_by_level[l] = h_t_doc_consensus_by_level[l]
-
 
     name2partition = {}
     for i,name in enumerate(hyperlink_g.vp['name']):
@@ -58,7 +52,6 @@ def assign_partition(
             doc_partition_remapping_inverse[part2] = part1
 
     labelling_partition_remapping_by_level = {gt_partition_level:{x:str(x) for x in doc_partition_remapping.values()}}
-#     labelling_partition_remapping_by_level = {gt_partition_level:{x:int(y) for x,y in doc_partition_remapping.items()}}
     labelling_partition_remapping_by_level_inverse = {level:{y:x for x,y in labelling_partition_remapping_by_level[level].items()} for level in labelling_partition_remapping_by_level}
 
 
@@ -93,7 +86,21 @@ def normalize_citations_count(
     knowledge_units_count_per_field_in_time,
     field_units_per_year,
 ):
-    # normalize citation_count_per_field using YE's prescription (null model)
+    '''
+        Normalize citation_count_per_field using YE's prescription (null model)
+        
+        Args:
+            all_partitions: 
+            citing_field: 
+            cited_field: 
+            citing_year: 
+            cited_year: 
+            knowledge_units_count_per_field_in_time: 
+            field_units_per_year: 
+        
+        Returns:
+            float :
+    '''
 
     # fraction of knowledge units received by citing field in citing_year from cited field in cited years over all knowledge units received by citing field in citing years
     numerator = knowledge_units_count_per_field_in_time[cited_field][citing_field][cited_year][citing_year]/np.sum([knowledge_units_count_per_field_in_time[x][citing_field][cited_year][citing_year] for x in knowledge_units_count_per_field_in_time.keys()])
@@ -111,19 +118,25 @@ def time_window_average_knowledge_flow(
     cited_years,
     knowledge_flow_normalized_per_field_in_time
 ):
+    '''
+        Computes the average knowledge flow of 
+        
+        Args:
+            citing_field: 
+            cited_field: 
+            citing_years: 
+            cited_years: 
+            knowledge_flow_normalized_per_field_in_time: 
+        
+        Returns:
+            float: 
+    '''
     # TODO: average over time window of field knowledge flow
     # it's the simple mean of the knowledge flow over the considered time window for the cited years given a citing year (and then you average this over a window of citing years)
     tmp = []
     for cited_year in cited_years:
         for citing_year in citing_years:
             if citing_year>cited_year:
-#                 print(cited_field,citing_field,cited_year,citing_year,"type",type(cited_field),type(citing_field),type(cited_year),type(citing_year))
-#                 print(len(knowledge_flow_normalized_per_field_in_time))
-#                 print(knowledge_flow_normalized_per_field_in_time.keys())
-#                 print(len(knowledge_flow_normalized_per_field_in_time[cited_field]))#[citing_field][cited_year][citing_year])
-#                 print(len(knowledge_flow_normalized_per_field_in_time[cited_field][citing_field]))#[cited_year][citing_year])
-#                 print(len(knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year]))#[citing_year])
-#                 print(knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year][citing_year])
                 tmp.append(knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year][citing_year])
     return np.nanmean(tmp)
 
@@ -134,6 +147,18 @@ def time_window_average_knowledge_flow_to_future(
     cited_years,
     knowledge_flow_normalized_per_field_in_time
 ):
+    '''
+        
+        
+        Args:
+            citing_field: 
+            cited_field: 
+            cited_years: 
+            knowledge_flow_normalized_per_field_in_time: 
+        
+        Returns:
+            float:
+    '''
     # TODO: average over time window of field knowledge flow
     # it's the simple mean of the knowledge flow over the considered time window for the cited years given a citing year (and then you average this over a window of citing years)
     tmp = []
@@ -151,6 +176,18 @@ def time_average_knowledge_flow_to_future(
     cited_year,
     knowledge_flow_normalized_per_field_in_time
 ):
+    '''
+        
+        Args:
+            lev: 
+            citing_field: 
+            cited_field: 
+            cited_year: 
+            knowledge_flow_normalized_per_field_in_time: 
+        
+        Returns:
+            float: 
+    '''
     tmp = []
     for citing_year in knowledge_flow_normalized_per_field_in_time[cited_field][citing_field][cited_year].keys(): # range(cited_year+1, 2022):
         if citing_year>cited_year:
@@ -169,7 +206,22 @@ def count_knowledge_units_per_field_in_time(
     results_folder,
     partition_used,
 ):
-
+    '''
+        
+        
+        Args:
+            all_partitions: 
+            assigned_partition: 
+            years: 
+            all_docs_dict: 
+            all_papers_ids: 
+            results_folder: 
+            partition_used: 
+        
+        Returns:
+            knowledge_units_count_per_field_in_time: 
+            field_units_per_year: 
+    '''
     knowledge_units_count_per_field_in_time = {partition: {partition: {year: {year: 0 for year in years} for year in years} for partition in all_partitions} for partition in all_partitions}
 
     # paper2 cites paper1 
@@ -217,6 +269,21 @@ def compute_knowledge_flow_normalized_per_field_in_time(
     results_folder,
     partition_used
 ):
+    '''
+        
+        
+        Args:
+            all_partitions: 
+            years: 
+            years_with_none: 
+            knowledge_units_count_per_field_in_time: 
+            field_units_per_year: 
+            results_folder: 
+            partition_used: 
+        
+        Returns:
+            knowledge_flow_normalized_per_field_in_time: 
+    '''
     knowledge_flow_normalized_per_field_in_time = {partition: {partition: {year: {year: 0 for year in years} for year in years} for partition in all_partitions} for partition in all_partitions}
 
     # NOTE: we iteratote over years_with_none because it only has years where a decentralization papers has been published, all other years are already initialized with 0
@@ -250,6 +317,20 @@ def compute_knowledge_flow_normalized_per_field_per_time_window(
     last_year = 2021,
     first_year = 1962,
 ):
+    '''
+        
+        
+        Args:
+            all_partitions: 
+            results_folder: 
+            partition_used: 
+            knowledge_flow_normalized_per_field_in_time: 
+            last_year: 
+            first_year: 
+        
+        Returns:
+            knowledge_flow_normalized_per_field_per_time_window: 
+    '''
     time_window_size_range = [5,10]
     
     knowledge_flow_normalized_per_field_per_time_window = {}
@@ -290,6 +371,20 @@ def compute_knowledge_flow_normalized_per_field_per_time_window_to_future(
     last_year = 2021,
     first_year = 1962,
 ):
+    '''
+        
+        
+        Args:
+            all_partitions: 
+            results_folder: 
+            partition_used: 
+            knowledge_flow_normalized_per_field_in_time: 
+            last_year: 
+            first_year: 
+        
+        Returns:
+            knowledge_flow_normalized_per_field_per_time_window_to_future
+    '''
     time_window_size_range = [5,10]
 
     knowledge_flow_normalized_per_field_per_time_window_to_future = {time_window_size: {(final_year-time_window_size+1,final_year): {'future': {partition: {partition: 0 for partition in all_partitions} for partition in all_partitions}} for final_year in range(last_year,first_year,-time_window_size)} for time_window_size in time_window_size_range}
@@ -320,6 +415,17 @@ def compute_knowledge_flow_normalized_per_field_in_time_df(
     results_folder,
     partition_used
 ):
+    '''
+        
+        Args:
+            lev
+            knowledge_flow_normalized_per_field_in_time
+            results_folder
+            partition_used
+        
+        Returns:
+            knowledge_flow_normalized_per_field_in_time_df: 
+    '''
     knowledge_flow_normalized_per_field_in_time_to_future = {}
     for cluster_from in knowledge_flow_normalized_per_field_in_time.keys():
         knowledge_flow_normalized_per_field_in_time_to_future[cluster_from] = {}
@@ -383,6 +489,24 @@ def run_knowledge_flow_analysis(
     last_year = 2021,
     first_year = 1962,
 ):
+    '''
+        
+        
+        Args:
+            all_docs_dict
+            h_t_doc_consensus_by_level
+            hyperlink_g
+            ordered_paper_ids
+            first_level_knowledge_flow
+            highest_non_trivial_level
+            dataset_path
+            results_folder
+            last_year
+            first_year
+        
+        Returns:
+            None
+    '''
     paper2field = {x['id']:x['fieldsOfStudy'] for x in all_docs_dict.values() if 'id' in x and 'fieldsOfStudy' in x}
 
     for gt_partition_level in range(first_level_knowledge_flow,highest_non_trivial_level + 1):

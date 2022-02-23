@@ -13,9 +13,6 @@ os.chdir('../')
 from datetime import datetime
 import sys
 sys.path.insert(0, os.path.join(os.getcwd(),'utils'))
-# from hsbm import sbmmultilayer 
-# from hsbm.utils.nmi import *
-# from hsbm.utils.doc_clustering import *
 import sbmmultilayer 
 from nmi import *
 from doc_clustering import *
@@ -59,11 +56,12 @@ parser.add_argument('-titles', '--use_titles', type=int,
 parser.add_argument('-analysis', '--do_analysis', type=int,
     help='Do analysis after gathering all iterations, instead of just the one provided by the ID. [default 0]',
     default=0)
-parser.add_argument('-id_list', '--id_list_for_analysis', type=str,
+parser.add_argument('-ID_list', '--ID_list_for_analysis', type=str,
     help='list of ids for which we do the analysis, list written as string (with brackets, see default), and then converted to list in the script. By default set to the list of the provided id. [default "[1]"]',
     default='[1]')
 parser.add_argument('-stop', '--stop_at_fit', type=int,
-    help='If stop_at_fit is 1, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate. [default 0]',
+    help='If stop_at_fit is 1, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate. \
+    Fit is done separately because it requires a lot of memory compared to everything else. [default 0]',
     default=0)
 parser.add_argument('-prep', '--do_only_prep', type=int,
     help='If do_only_prep is 1, it does only the preparation of all files needed to do the hsbm and the following analysis. [default 0]',
@@ -78,15 +76,15 @@ dataset_path = arguments.dataset_path
 analysis_results_subfolder = arguments.analysis_results_subfolder
 if len(analysis_results_subfolder) > 0 and analysis_results_subfolder[-1] != '/':
     analysis_results_subfolder += '/'
-ID = arguments.ID
+ID_iteration = arguments.ID
 number_iterations_MC_equilibrate = arguments.number_iterations_MC_equilibrate
 min_word_occurences = arguments.min_word_occurences
 use_titles = arguments.use_titles == 1
 do_analysis = arguments.do_analysis
-_id_list_string = arguments.id_list_for_analysis
-_id_list = ast.literal_eval(_id_list_string)
+ID_iteration_list_string = arguments.ID_list_for_analysis
+ID_iteration_list = ast.literal_eval(ID_iteration_list_string)
 if do_analysis == 0:
-    _id_list = [ID]
+    ID_iteration_list = [ID_iteration]
 stop_at_fit = arguments.stop_at_fit == 1
 do_only_prep = arguments.do_only_prep == 1
 first_level_knowledge_flow = arguments.first_level_knowledge_flow
@@ -94,6 +92,7 @@ first_level_knowledge_flow = arguments.first_level_knowledge_flow
 
 # Parameters needed in the process.
 # ACHTUNG: Be aware to change this!
+
 min_inCitations = 0 # Minimum number of citations filter
 N_iter = 1 # Number of iterations of the hSBM algorithm. Now it's not parallelized, so be aware of computational time
 n_cores = 1 # If you do plots or other graph_tool stuff, this needs to be properly set with the number of available cores
@@ -111,7 +110,7 @@ if use_titles:
     print('Using titles text instead of abstracts!', flush=True)
     chosen_text_attribute = 'title'
     results_folder = results_folder[:-1] + '_titles/'
-results_folder_iteration = os.path.join(results_folder, f'ID_{ID}_no_iterMC_{number_iterations_MC_equilibrate}/')
+results_folder_iteration = os.path.join(results_folder, f'ID_{ID_iteration}_no_iterMC_{number_iterations_MC_equilibrate}/')
 print(results_folder_iteration,flush=True)
 print(f'Filtering with at least {min_inCitations} citations and {N_iter} iterations and {number_iterations_MC_equilibrate} swaps in MC-equilibrate.',flush=True)
 os.makedirs(results_folder, exist_ok = True)
@@ -130,19 +129,31 @@ all_docs_dict = {x:all_docs_dict[x] for x in all_docs_dict if chosen_text_attrib
 print('total number of docs: %d'%(len(all_docs_dict)))
 
 # tokenized texts
-tokenized_texts_dict = load_tokenized_texts_dict(all_docs_dict, results_folder, chosen_text_attribute=chosen_text_attribute, file_name = 'tokenized_texts_dict_all.pkl.gz')
-
+tokenized_texts_dict = load_tokenized_texts_dict(
+    all_docs_dict, 
+    results_folder, 
+    chosen_text_attribute=chosen_text_attribute, 
+    file_name = 'tokenized_texts_dict_all.pkl.gz'
+)
 # article category (fields of study)
-article_category = load_article_category(all_docs_dict, results_folder, file_name = 'article_category_all.pkl.gz')
-
+article_category = load_article_category(
+    all_docs_dict, 
+    results_folder, 
+    file_name = 'article_category_all.pkl.gz'
+)
 # citations edgelist (hyperlinks)
 sorted_paper_ids_with_texts = list(tokenized_texts_dict.keys())
-citations_df = load_citations_edgelist(all_docs_dict, sorted_paper_ids_with_texts, results_folder, file_name = 'citations_edgelist_all.csv')
+citations_df = load_citations_edgelist(
+    all_docs_dict, 
+    sorted_paper_ids_with_texts, 
+    results_folder, 
+    file_name = 'citations_edgelist_all.csv'
+)
 
 
 # FILTER NETWORK
 
-ordered_papers_with_cits, new_filtered_words, tokenized_texts_dict, results_folder, filter_label, IDs, texts, edited_text = filter_dataset(
+ordered_papers_with_cits, new_filtered_words, IDs, texts, edited_text = filter_dataset(
     all_docs_dict,
     tokenized_texts_dict,
     min_inCitations,
@@ -186,84 +197,53 @@ if do_only_prep:
     
     
 # ACHTUNG seed is what before whas the job array id
-SEED_NUM = ID
+SEED_NUM = ID_iteration
 print(f'seed is {SEED_NUM}',flush=True)
 print('gt version:', gt.__version__)
 
 
 
 if not do_analysis:
-    # Execute multiple runs of fitting multilayer SBM using greedy moves.
+    # Execute runs of fitting multilayer SBM using greedy moves, one for each ID_iteration.
     try:
         ################ ACHTUNG CHANGING FOLDER TO SUBFOLDER HERE!!!!!!!! ################
         results_folder = results_folder_iteration
         os.makedirs(results_folder, exist_ok=True)
+        # Load fit if already finished
         with gzip.open(f'{results_folder}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
             hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
         print(f'Fit and calibration already done (in {time_duration}), loaded.',flush=True)
-        
     except:
         print('Fit and calibration files not found, starting fit.',flush=True)
         start = datetime.now()
-        
-        hyperlink_text_hsbm_states =  fit_hyperlink_text_hsbm(edited_text, 
-                                                                      IDs, 
-                                                                      hyperlinks, 
-                                                                      N_iter, 
-                                                                      results_folder, 
-                                                                      stop_at_fit = stop_at_fit, 
-                                                                      filename_fit = f'results_fit_greedy{filter_label}_tmp.pkl.gz', 
-                                                                      SEED_NUM=SEED_NUM, 
-                                                                      number_iterations_MC_equilibrate = number_iterations_MC_equilibrate)
+        # Do fit. Do also equilibrate if stop_at_fit == False
+        # Fit is done separately because it requires a lot of memory compared to everything else
+        hyperlink_text_hsbm_states =  fit_hyperlink_text_hsbm(
+            edited_text, 
+            IDs, 
+            hyperlinks, 
+            N_iter, 
+            results_folder, 
+            stop_at_fit = stop_at_fit, 
+            filename_fit = f'results_fit_greedy{filter_label}_tmp.pkl.gz', 
+            SEED_NUM=SEED_NUM, 
+            number_iterations_MC_equilibrate = number_iterations_MC_equilibrate
+        )
         if stop_at_fit == True:
+            # The temporary file generated with the fit is dumped in the function, so for the equilibrate that will be loaded
             exit()
             
         end = datetime.now()
         time_duration = end - start
-        
+        # Dump result after equilibration
         with gzip.open(f'{results_folder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((hyperlink_text_hsbm_states,end-start),fp)
-
         print('Time duration algorithm',time_duration,flush=True)
-
 else:
     # ACHTUNG: if you change the list of states (or the states are modified), 
     #          remove all the files created in the following code in results_folder
     #          otherwise they will not do again the analysis and use old data, giving errors
-    results_folder = results_folder # useless, but just to remember we save analysis results to results_folder, as they're _id independent
-    try:
-        start = datetime.now()
-        print('Doing analysis, not fit',flush = True)
-        print('Loading list of iterations', _id_list_string, flush=True)
-        with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
-            hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
-        print('Average time duration algorithm',time_duration,flush=True)
-        end = datetime.now()
-    except:
-        print('Loading states 1 by 1')
-        start = datetime.now()
-        time_duration_list = []
-        results_folder_iteration = os.path.join(results_folder, f'ID_{_id_list[0]}_no_iterMC_{number_iterations_MC_equilibrate}/')
-        
-        with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
-            hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
-        time_duration_list.append(time_duration)
-#         print('Loaded %d'%_id_list[0],flush = True)
-#         for _id in _id_list[1:]:
-#             results_folder_iteration = os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/')
-#             with gzip.open(f'{results_folder_iteration}results_fit_greedy{filter_label}.pkl.gz','rb') as fp:
-#     #                 hyperlink_text_hsbm_states.append(pickle.load(fp)[0])
-#                 hyperlink_text_hsbm_state,time_duration = pickle.load(fp)
-#                 hyperlink_text_hsbm_states += hyperlink_text_hsbm_state
-#             time_duration_list.append(time_duration)
-#             print('Loaded %d'%_id,flush = True)
-#         time_duration = np.mean(time_duration_list)
-#         os.makedirs(results_folder+analysis_results_subfolder, exist_ok = True)
-#         with gzip.open(f'{results_folder+analysis_results_subfolder}results_fit_greedy{filter_label}.pkl.gz','wb') as fp:
-#             pickle.dump((hyperlink_text_hsbm_states,time_duration),fp)
-        end = datetime.now()
-#         print('Average time duration algorithm',time_duration,flush=True)
-    print('Time loading states',end-start,flush=True)
+    print('Doing analysis, not fit',flush = True)
         
 
 # RETRIEVE PARTITIONS
@@ -277,38 +257,45 @@ start = datetime.now()
 if do_analysis == 0:
     dir_list = [results_folder]
 else:
-    dir_list = [os.path.join(results_folder, f'ID_{_id}_no_iterMC_{number_iterations_MC_equilibrate}/') for _id in _id_list]
-hyperlink_text_hsbm_partitions, levels = get_highest_level_hsbm_partitions_from_iterations(hyperlink_g, dir_list, results_folder+analysis_results_subfolder)
+    dir_list = [os.path.join(results_folder, f'ID_{ID_iteration}_no_iterMC_{number_iterations_MC_equilibrate}/') for ID_iteration in ID_iteration_list]
+hyperlink_text_hsbm_partitions, levels = get_highest_level_hsbm_partitions_from_iterations(
+    hyperlink_g, 
+    dir_list, 
+    results_folder+analysis_results_subfolder
+)
 end = datetime.now()
 print('Time duration',end - start,flush=True)
 
 
 # Retrieve partitions assigned to documents in each run for every level up to the highest level among all iterations
 print('\nAll levels',flush=True)
-hyperlink_text_hsbm_partitions_by_level, time_duration = get_hsbm_partitions_from_iterations(hyperlink_g,
-                                        dir_list, 
-                                        levels,
-                                        results_folder+analysis_results_subfolder,
-                                       )
+hyperlink_text_hsbm_partitions_by_level, time_duration = get_hsbm_partitions_from_iterations(
+    hyperlink_g,
+    dir_list, 
+    levels,
+    results_folder+analysis_results_subfolder,
+)
 print('Time duration',time_duration, flush=True)
 
 
 print('\nRetrieve word partitions',flush=True)
 # We now show how this framework tackles the problem of topic modelling simultaneously.
 # Retrieve the topics associated to the consensus partition.
-H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = get_hsbm_word_partitions_from_iterations(hyperlink_g,
-                                        dir_list, 
-                                        levels,
-                                        results_folder + analysis_results_subfolder,
-                                        IDs
-                                       )
+H_T_word_hsbm_partitions_by_level, H_T_word_hsbm_num_groups_by_level = get_hsbm_word_partitions_from_iterations(
+    hyperlink_g,
+    dir_list, 
+    levels,
+    results_folder + analysis_results_subfolder,
+    IDs
+)
 
 # CONSENSUS PARTITION
+
 print('\nConsensus partition by level', flush=True)
 start = datetime.now()
 
 h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level = get_consensus(
-    hyperlink_text_hsbm_states = hyperlink_text_hsbm_states,
+    dir_list = dir_list,
     hyperlink_text_hsbm_partitions_by_level = hyperlink_text_hsbm_partitions_by_level,
     H_T_word_hsbm_partitions_by_level = H_T_word_hsbm_partitions_by_level,
     ordered_paper_ids = ordered_paper_ids,
@@ -317,41 +304,20 @@ h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_b
     )
 
 highest_non_trivial_level = max(list(h_t_doc_consensus_by_level.keys()))
-end = datetime.now()
-print('Time duration',end-start,flush=True)
-
-
-print('\nGet all topics by level',flush=True)
-
-g_words, dict_groups_by_level, topics_df_by_level = get_topics(
-    hyperlink_text_hsbm_states,
-    h_t_consensus_summary_by_level,
-    h_t_doc_consensus_by_level,
-)
-
-
-# Topic frequency in clusters
-print('\nMixture proportion',flush=True)
-start = datetime.now()
-mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = get_mixture_proportion(
-    h_t_doc_consensus_by_level, 
-    dict_groups_by_level, 
-    ordered_edited_texts,
-    topics_df_by_level,
-    results_folder = results_folder + analysis_results_subfolder,
-    filter_label = ''
-)
+print(f'highest_non_trivial_level is {highest_non_trivial_level}', flush=True)
 end = datetime.now()
 print('Time duration',end-start,flush=True)
 
 
 # RECOVER HIERARCHY
+
+print('\nRecovering hierarchy structure', flush=True)
 start = datetime.now()
 hierarchy_docs,hierarchy_words = get_hierarchy(
-    highest_non_trivial_level=highest_non_trivial_level,
-    h_t_doc_consensus_by_level=h_t_doc_consensus_by_level,
-    h_t_word_consensus_by_level=h_t_word_consensus_by_level,
-    results_folder=results_folder+analysis_results_subfolder,
+    highest_non_trivial_level = highest_non_trivial_level,
+    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level,
+    h_t_word_consensus_by_level = h_t_word_consensus_by_level,
+    results_folder = results_folder+analysis_results_subfolder,
     filter_label = filter_label,
 )
 
@@ -367,19 +333,46 @@ except:
 end = datetime.now()
 print('Time duration',end-start,flush=True)
 
-    
-    
-    
-# Normalized mixture proportion by different level partition and topic
+   
+# TOPICS ANALYSIS
 
-print('\nNormalized mixture proportion between different levels')
+print('\nGet all topics by level',flush=True)
+start = datetime.now()
+g_words, dict_groups_by_level, topics_df_by_level = get_topics(
+    dir_list = dir_list,
+    h_t_consensus_summary_by_level = h_t_consensus_summary_by_level,
+    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level,
+)
+end = datetime.now()
+print('Time duration',end-start,flush=True)
+
+
+# Topic frequency in clusters in the same level
+
+print('\nMixture proportion of topics in clusters of docs at the same level',flush=True)
+start = datetime.now()
+mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = get_mixture_proportion(
+    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level, 
+    dict_groups_by_level = dict_groups_by_level, 
+    ordered_edited_texts = ordered_edited_texts,
+    topics_df_by_level = topics_df_by_level,
+    results_folder = results_folder + analysis_results_subfolder,
+    filter_label = ''
+)
+end = datetime.now()
+print('Time duration',end-start,flush=True)
+
+ 
+# Topic frequency in clusters in different levels
+
+print('\nMixture proportion of topics in clusters of docs between different levels')
 start = datetime.now()
 mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = get_mixture_proportion_by_level(
-    h_t_doc_consensus_by_level, 
-    dict_groups_by_level, 
-    ordered_edited_texts,
-    topics_df_by_level,
-    highest_non_trivial_level,
+    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level, 
+    dict_groups_by_level = dict_groups_by_level, 
+    ordered_edited_texts = ordered_edited_texts,
+    topics_df_by_level = topics_df_by_level,
+    highest_non_trivial_level = highest_non_trivial_level,
     results_folder = results_folder + analysis_results_subfolder,
     filter_label = ''
 )
@@ -387,29 +380,26 @@ end = datetime.now()
 print('Time duration',end-start,flush=True)
 
         
-        
-        
-
 # KNOWLEDGE FLOW
+
 print('\nStarting knowledge flow calculations')
 start = datetime.now()
 
 run_knowledge_flow_analysis(
-    all_docs_dict,
-    h_t_doc_consensus_by_level,
-    hyperlink_g,
-    ordered_paper_ids,
-    first_level_knowledge_flow,
-    highest_non_trivial_level,
-    dataset_path,
-    results_folder,
+    all_docs_dict = all_docs_dict,
+    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level,
+    hyperlink_g = hyperlink_g,
+    ordered_paper_ids = ordered_paper_ids,
+    first_level_knowledge_flow = first_level_knowledge_flow,
+    highest_non_trivial_level = highest_non_trivial_level,
+    dataset_path = dataset_path,
+    results_folder = results_folder,
     last_year = 2021,
     first_year = 1962,
 )
 
 end = datetime.now()
 print('Time duration',end-start,flush=True)
-
 
 
 print('FINISHED')
