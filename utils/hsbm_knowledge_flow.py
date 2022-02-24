@@ -19,7 +19,6 @@ def assign_partition(
         Args:
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
-            ordered_paper_ids: ordered list of paper_ids in hyperlink_g, with the same ordering as hyperlink_g.vp['name'] (list of str, i.e., list(hyperlink_g.vp['name']))
             gt_partition_level: level of hsbm at which to take the partition (int)
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
         
@@ -40,7 +39,6 @@ def assign_partition(
             all_docs_dict[paper_id]['assigned_cluster_list'] = [name2partition[paper_id]]
         else: 
             all_docs_dict[paper_id]['assigned_cluster_list'] = []
-
 
     all_clusters = set([x for x in name2partition.values()])
     all_clusters = list(all_clusters)
@@ -260,10 +258,8 @@ def compute_knowledge_flow_normalized_per_cluster_in_time_df(
     partition_used
 ):
     '''
-        Uses knowledge_flow_normalized_per_cluster_in_time_dict to create a pd.DataFrame with columns 'year_from','year_to':_t_t
-        'cluster_from':_from,
-        'cluster_to':_to,
-        'knowledge_flow':k
+        Uses knowledge_flow_normalized_per_cluster_in_time_dict to create a pd.DataFrame with columns:
+        'year_from','year_to','cluster_from','cluster_to','knowledge_flow'.
 
         Returns a dataframe similar to knowledge_units_count_per_cluster_in_time_dict but normalized according to a null model, see the paper:
         Ye Sun and Vito Latora. The evolution of knowledge within and across fields in modern physics. Scientific Reports, 10(1):12097, December 2020.
@@ -328,7 +324,6 @@ def compute_knowledge_flow_normalized_per_cluster_in_time_df(
 
 
 def compute_knowledge_flow_normalized_per_cluster_per_time_window(
-    all_clusters,
     results_folder,
     partition_used,
     knowledge_flow_normalized_per_cluster_in_time_df,
@@ -341,7 +336,6 @@ def compute_knowledge_flow_normalized_per_cluster_per_time_window(
         
         
         Args:
-            all_clusters: sorted list of all the clusters in the considered partition (list of int)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             partition_used: str to recognize what kind of partition has been used (str)
             knowledge_flow_normalized_per_cluster_in_time_df: 
@@ -359,13 +353,13 @@ def compute_knowledge_flow_normalized_per_cluster_per_time_window(
     knowledge_flow_normalized_per_cluster_per_time_window = {}
     for time_window_size in time_window_size_range:
 
-        knowledge_flow_normalized_per_cluster_in_time['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
+        knowledge_flow_normalized_per_cluster_in_time_df['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
 
         bins = range(last_year,first_year,-time_window_size)
-        knowledge_flow_normalized_per_cluster_per_time[f'time_window_{time_window}_years_from'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time.year_from],bins = bins, labels = bins[:-1]) 
-        knowledge_flow_normalized_per_cluster_per_time[f'time_window_{time_window}_years_to'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time.year_to],bins = bins, labels = bins[:-1]) 
+        knowledge_flow_normalized_per_cluster_in_time_df[f'time_window_{time_window_size}_years_from'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time_df.year_from, bins = bins, labels = bins[:-1]) 
+        knowledge_flow_normalized_per_cluster_in_time_df[f'time_window_{time_window_size}_years_to'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time_df.year_to, bins = bins, labels = bins[:-1]) 
 
-        knowledge_flow_normalized_per_cluster_per_time_window[time_window_size] = knowledge_flow_normalized_per_cluster_per_time.groupby(['cluster_from','cluster_to',f'time_window_{time_window}_years_from',f'time_window_{time_window}_years_to'],as_index=False).significant_kf.mean()
+        knowledge_flow_normalized_per_cluster_per_time_window[time_window_size] = knowledge_flow_normalized_per_cluster_in_time_df.groupby(['cluster_from','cluster_to',f'time_window_{time_window_size}_years_from',f'time_window_{time_window_size}_years_to'],as_index=False).significant_kf.mean()
 
     with gzip.open(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_per_time_window_{partition_used}.pkl.gz'),'wb') as fp:
         pickle.dump(knowledge_flow_normalized_per_cluster_per_time_window,fp)
@@ -373,7 +367,6 @@ def compute_knowledge_flow_normalized_per_cluster_per_time_window(
     return knowledge_flow_normalized_per_cluster_per_time_window
 
 def compute_knowledge_flow_normalized_per_cluster_per_time_window_to_future(
-    all_clusters,
     results_folder,
     partition_used,
     knowledge_flow_normalized_per_cluster_in_time_df,
@@ -403,21 +396,20 @@ def compute_knowledge_flow_normalized_per_cluster_per_time_window_to_future(
     knowledge_flow_normalized_per_cluster_per_time_window_to_future = {}
     for time_window_size in time_window_size_range:
 
-        knowledge_flow_normalized_per_cluster_in_time['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
+        knowledge_flow_normalized_per_cluster_in_time_df['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
 
         bins = range(last_year,first_year,-time_window_size)
-        knowledge_flow_normalized_per_cluster_per_time[f'time_window_{time_window}_years_from'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time.year_from],bins = bins, labels = bins[:-1]) 
+        knowledge_flow_normalized_per_cluster_in_time_df[f'time_window_{time_window_size}_years_from'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time_df.year_from,bins = bins, labels = bins[:-1]) 
 
-        knowledge_flow_normalized_per_cluster_per_time_window_to_future[time_window_size] = knowledge_flow_normalized_per_cluster_per_time.groupby(['cluster_from','cluster_to',f'time_window_{time_window}_years_from'],as_index=False).significant_kf.mean()
+        knowledge_flow_normalized_per_cluster_per_time_window_to_future[time_window_size] = knowledge_flow_normalized_per_cluster_in_time_df.groupby(['cluster_from','cluster_to',f'time_window_{time_window}_years_from'],as_index=False).significant_kf.mean()
     
-    with gzip.open(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_per_time_window_to_future_{partition_used}.pkl.gz'),'wb') as fp:
+    with gzip.open(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_per_time_window_to_future_df_{partition_used}.pkl.gz'),'wb') as fp:
         pickle.dump(knowledge_flow_normalized_per_cluster_per_time_window_to_future,fp)
     
     return knowledge_flow_normalized_per_cluster_per_time_window_to_future
 
 
 def compute_knowledge_flow_normalized_per_cluster_in_time_to_future(
-    all_clusters,
     results_folder,
     partition_used,
     knowledge_flow_normalized_per_cluster_in_time_df,
@@ -433,18 +425,14 @@ def compute_knowledge_flow_normalized_per_cluster_in_time_to_future(
         
         Returns:
             knowledge_flow_normalized_per_cluster_per_time_window: 
-    '''
-    time_window_size_range = [5,10]
-    
+    '''    
     knowledge_flow_normalized_per_cluster_in_time_to_future = {}
-    for time_window_size in time_window_size_range:
 
-        knowledge_flow_normalized_per_cluster_in_time['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
+    knowledge_flow_normalized_per_cluster_in_time_df['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
 
-        knowledge_flow_normalized_per_cluster_in_time_to_future[time_window_size] = knowledge_flow_normalized_per_cluster_per_time.groupby(['cluster_from','cluster_to','year_from'],as_index=False).significant_kf.mean()
+    knowledge_flow_normalized_per_cluster_in_time_to_future = knowledge_flow_normalized_per_cluster_in_time_df.groupby(['cluster_from','cluster_to','year_from'],as_index=False).significant_kf.mean()
     
-    with gzip.open(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_in_time_to_future_{partition_used}.pkl.gz'),'wb') as fp:
-        pickle.dump(knowledge_flow_normalized_per_cluster_in_time_to_future,fp)
+    knowledge_flow_normalized_per_cluster_in_time_to_future.to_csv(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_in_time_to_future_df_{partition_used}.csv.gz'),index=False)
     
     return knowledge_flow_normalized_per_cluster_in_time_to_future
 
@@ -453,7 +441,6 @@ def run_knowledge_flow_analysis(
     all_docs_dict,
     h_t_doc_consensus_by_level,
     hyperlink_g,
-    ordered_paper_ids,
     lowest_level_knowledge_flow,
     highest_non_trivial_level,
     dataset_path,
@@ -470,14 +457,13 @@ def run_knowledge_flow_analysis(
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
-            ordered_paper_ids: ordered list of paper_ids in hyperlink_g, with the same ordering as hyperlink_g.vp['name'] (list of str, i.e., list(hyperlink_g.vp['name']))
             lowest_level_knowledge_flow: lowest level of the hsbm consensus partition on which to calculate the knowledge flows (int)
             highest_non_trivial_level: highest level of the hsbm consensus partition for which there are more than 1 groups (int)
             dataset_path: path to the whole dataset with respect to the repo root folder (str, valid path)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
-            last_year: most recent year to consider in the analysis
-            first_year: least recent year to consider in the analysis
-            time_window_size: list of integers representing the time window sizes to make the computation for
+            last_year: most recent year to consider in the analysis (int)
+            first_year: least recent year to consider in the analysis (int)
+            time_window_size: list of integers representing the time window sizes to make the computation for ()
             significance_threshold: threshold to consider a knowledge flow value significant
         
         Returns:
@@ -494,7 +480,7 @@ def run_knowledge_flow_analysis(
             assign_partition(
                 h_t_doc_consensus_by_level,
                 hyperlink_g,
-                 gt_partition_level,
+                gt_partition_level,
                 all_docs_dict,
             )
 
@@ -533,7 +519,6 @@ def run_knowledge_flow_analysis(
 
         knowledge_flow_normalized_per_cluster_per_time_window = \
             compute_knowledge_flow_normalized_per_cluster_per_time_window(
-                all_clusters,
                 results_folder,
                 partition_used,
                 knowledge_flow_normalized_per_cluster_in_time_df,
@@ -545,7 +530,6 @@ def run_knowledge_flow_analysis(
 
         knowledge_flow_normalized_per_cluster_per_time_window_to_future = \
             compute_knowledge_flow_normalized_per_cluster_per_time_window_to_future(
-                all_clusters,
                 results_folder,
                 partition_used,
                 knowledge_flow_normalized_per_cluster_in_time_df,
@@ -556,8 +540,7 @@ def run_knowledge_flow_analysis(
             )
 
         knowledge_flow_normalized_per_cluster_in_time_to_future = \
-            compute_knowledge_flow_normalized_per_cluster_per_time_window_to_future(
-                all_clusters,
+            compute_knowledge_flow_normalized_per_cluster_in_time_to_future(
                 results_folder,
                 partition_used,
                 knowledge_flow_normalized_per_cluster_in_time_df,
