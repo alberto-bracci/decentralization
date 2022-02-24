@@ -180,12 +180,9 @@ def get_hsbm_partitions_from_iterations(
         clustering_info.seeds = [0]
 
         hyperlink_text_hsbm_partitions_by_level = {}
-# TODO: check
-#         hyperlink_text_hsbm_partitions_by_level_info = {}
 
         for l in range(max(levels)+1):
             hyperlink_text_hsbm_partitions_by_level[l] = []
-#             hyperlink_text_hsbm_partitions_by_level_info[l] = []
         
         print(f'Retrieving all iterations from provided list of directories', flush=True)
             
@@ -194,19 +191,15 @@ def get_hsbm_partitions_from_iterations(
             try:
                 with gzip.open(os.path.join(dir_,f'results_fit_greedy_partitions_docs_all.pkl.gz'),'rb') as fp:
                     tmp_hyperlink_text_hsbm_partitions_by_level, tmp_duration = pickle.load(fp)
-#                 with gzip.open(os.path.join(dir_,f'results_fit_greedy_partitions_docs_all_info.pkl.gz'),'rb') as fp:
-#                     tmp_hyperlink_text_hsbm_partitions_by_level_info, tmp_duration = pickle.load(fp)
                 print(f'Loaded partitions from {dir_}', flush=True)
                 for iteration in range(len(tmp_hyperlink_text_hsbm_partitions_by_level[list(tmp_hyperlink_text_hsbm_partitions_by_level.keys())[0]])):
                     count += 1
                     print('Iteration %d'%count, flush=True)
                     for l in range(max(levels)+1):
                         try:
-#                             hyperlink_text_hsbm_partitions_by_level_info[l].append(tmp_hyperlink_text_hsbm_partitions_by_level_info[l][iteration])
                             hyperlink_text_hsbm_partitions_by_level[l].append(tmp_hyperlink_text_hsbm_partitions_by_level[l][iteration])
                         except KeyError as e:
                             print(f'count is {count}, level is {l}, got KeyError:\n\t{e}',flush=True)
-#                             hyperlink_text_hsbm_partitions_by_level_info is not used... TODO DELETE IT
                             hyperlink_text_hsbm_partitions_by_level[l].append(list(np.zeros(len(tmp_hyperlink_text_hsbm_partitions_by_level[0][iteration]))))
             except FileNotFoundError:
                 try:
@@ -217,9 +210,7 @@ def get_hsbm_partitions_from_iterations(
                         count += 1
                         print('Iteration %d'%count, flush=True)
                         for l in range(max(levels)+1):
-                            # TODO CHECK
                             tmp = clustering_info.collect_info2('1-layer-doc', curr_hsbm.g, [l], curr_hsbm.state)
-#                             hyperlink_text_hsbm_partitions_by_level_info[l].append(tmp)
                             hyperlink_text_hsbm_partitions_by_level[l].append(tmp[0][0])                    
                     print(f'Computed partitions from {dir_}', flush=True)
                 except FileNotFoundError:
@@ -230,9 +221,6 @@ def get_hsbm_partitions_from_iterations(
         end = datetime.now()
         with gzip.open(os.path.join(results_folder, f'results_fit_greedy_partitions_docs_all.pkl.gz'),'wb') as fp:
             pickle.dump((hyperlink_text_hsbm_partitions_by_level,end-start),fp)
-
-#         with gzip.open(os.path.join(results_folder, f'results_fit_greedy_partitions_docs_all_info.pkl.gz'),'wb') as fp:
-#             pickle.dump((hyperlink_text_hsbm_partitions_by_level_info,end-start),fp)#
     end = datetime.now()
     time_duration = end-start
     return hyperlink_text_hsbm_partitions_by_level, time_duration
@@ -395,9 +383,6 @@ def get_consensus_nested_partition(
 
             hierarchy_words_partitions[l].append({w: set() for w in np.unique(tmp1_words)})
             
-#             # TODO AGGIUNTO ADESSO, PROVA
-#             if l == 1:
-#                 H_T_word_hsbm_partitions_by_level[0][iteration] = tmp2_words.copy()
             for i in range(len(tmp2_words)):
                 hierarchy_words_partitions[l][iteration][tmp1_words[i]].add(tmp2_words[i])
 
@@ -420,7 +405,6 @@ def get_consensus_nested_partition(
         h_t_word_consensus_by_level[l] = np.array([c_w[l][h_t_word_consensus_by_level[l-1][word]] for word in range(len(hyperlink_words_hsbm_partitions_by_level[0][0]))])
     
     return h_t_word_consensus_by_level
-
 
 def get_consensus(
     dir_list,

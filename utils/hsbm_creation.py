@@ -20,11 +20,13 @@ def create_tokenized_texts_dict(
     '''
         Creates a dictionary with all the tokenized texts of each paper, using the given chosen_text_attribute. 
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             chosen_text_attribute: attribute in each paper dict to use to get the text layer (str, default:"title")
         
-        Returns:
+        Returns
+        -------
             tokenized_texts_dict: dictionary with paper_id as key and the list of words in the chosen attribute as value (dict of list of strings)
     '''
     # prune text from punctuation and junk...
@@ -54,13 +56,15 @@ def load_tokenized_texts_dict(
     '''
         Loads or creates&saves the dataframe citations_df with the list of edges of citations between papers within the given dataset.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             chosen_text_attribute: attribute in each paper dict to use to get the text layer (str, default:"title")
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             file_name: file name where to load/save tokenized_texts_dict in results_folder (str, default: "tokenized_texts_dict.pkl.gz")
         
-        Returns:
+        Returns
+        -------
             tokenized_texts_dict: dictionary with paper_id as key and the list of words in the chosen attribute as value (dict of list of strings)
     '''
     try:
@@ -86,11 +90,13 @@ def create_citations_edgelist(
         Creates the dataframe citations_df with the list of edges of citations between papers within the given dataset.
         ACHTUNG: only for those who have a text (in papers_with_texts)
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             papers_with_texts: set or list of paper_ids that have a non empty text (list of strings)
         
-        Returns:
+        Returns
+        -------
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link
     '''
     papers_with_texts = set(papers_with_texts)
@@ -117,13 +123,15 @@ def load_citations_edgelist(
     '''
         Loads or creates&saves the dataframe citations_df with the list of edges of citations between papers within the given dataset.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             papers_with_texts: set or list of paper_ids that have a non empty text (list of strings)
             results_folder: path to directory of the results_folder where to save citations_edgelist (str, valid path)
             file_name: file name where to load/save citations_edgelist in results_folder (str, default: "citations_edgelist.csv")
         
-        Returns:
+        Returns
+        -------
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link
     '''
     try:
@@ -150,14 +158,16 @@ def filter_papers_with_cits(
         Loads or creates&saves the dataframe citations_df with the list of edges of citations between papers within the given dataset. 
         It considers only the papers that are cited or get cited once (in total). It also filters only the papers with at least min_inCitations inCitations.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             papers_with_texts: set or list of paper_ids that have a non empty text (list of strings)
             results_folder: path to directory of the results_folder where to save citations_edgelist (str, valid path)
             file_name: file name where to load/save citations_edgelist in results_folder (str, default: "citations_edgelist.csv")
             min_inCitations: minimum number of inCitations to use during filtering (int, default: 0)
         
-        Returns:
+        Returns
+        -------
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link (pd.DataFrame)
             ordered_papers_with_cits: ordered list of paper_ids in the citation layer with at least min_inCitations (list of str)
     '''
@@ -190,7 +200,8 @@ def load_filtered_papers_with_cits(
         Loads or creates&saves the dataframe citations_df with the list of edges of citations between papers within the given dataset, filtering only papers in the citation network. 
         It considers only the papers that are cited or get cited once (in total). It also filters only the papers with at least min_inCitations inCitations.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             papers_with_texts: set or list of paper_ids that have a non empty text (list of strings)
             results_folder: path to directory of the results_folder where to save citations_edgelist (str, valid path)
@@ -198,7 +209,8 @@ def load_filtered_papers_with_cits(
             file_name_citations_df_no_filter: file name where to load citations_edgelist_all in results_folder (str, default: "citations_edgelist.csv")
             min_inCitations: minimum number of inCitations to use during filtering (int, default: 0)
         
-        Returns:
+        Returns
+        -------
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link (pd.DataFrame)
             ordered_papers_with_cits: ordered list of paper_ids in the citation layer with at least min_inCitations (list of str)
     '''
@@ -224,10 +236,12 @@ def create_article_category(
     '''
         Creates the dataframe article_category with the fields of study of each paper in the given dataset.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
         
-        Returns:
+        Returns
+        -------
             article_category: dictionary with paper_id as key and thestring representing the fields of study of the paper as value (dict of strings)
     '''
     article_category = {}
@@ -247,12 +261,14 @@ def load_article_category(
     '''
         Loads or creates&saves a dictionary with the categories of each doc.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             results_folder: path to directory of the results_folder where to save citations_edgelist (str, valid path)
             file_name: file name where to load/save citations_edgelist in results_folder (str, default: "citations_edgelist.csv")
         
-        Returns:
+        Returns
+        -------
             article_category: dictionary with paper_id as key and thestring representing the fields of study of the paper as value (dict of strings)
     '''
     try:
@@ -283,7 +299,8 @@ def filter_dataset(
         Only papers with at least min_inCitations number of in-citations are considered.
         Stopwords are also removed in the edited_texts.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             tokenized_texts_dict: dictionary with paper_id as key and the list of words in the chosen attribute as value (dict of list of strings)
             min_inCitations: minimum number of inCitations that a paper has to have to be preserved in the dataset (int)
@@ -291,7 +308,8 @@ def filter_dataset(
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        -------
             ordered_papers_with_cits: ordered list of paper_ids in the citation layer with at least min_inCitations (list of str)
             new_filtered_words: set of filtered words, before removing stop_words (set of str)
             IDs: list of the unique paper IDs kept after filtering (list of str)
@@ -348,12 +366,14 @@ def create_hyperlink_g(
     '''
         Create hyperlink network between all docs, using the created citations edgelist.
         
-        Args:
+        Paramaters
+        ----------
             article_category: dictionary with paper_id as key and thestring representing the fields of study of the paper as value (dict of strings)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        -------
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
             hyperlinks: list of tuples (node_1, node_2) representing links from node_1 to node_2 in the citation_layer (list of tuples of two elements)
     '''
@@ -402,7 +422,8 @@ def load_centralities(
     '''
         Load or create&dump all centralities on hyperlink_g. These are: citations_overall, in_degree, out_degree, betweenness, closeness, pagerank, katz.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link (pd.DataFrame)
             ordered_paper_ids: ordered list of paper_ids in hyperlink_g, with the same ordering as hyperlink_g.vp['name'] (list of str, i.e., list(hyperlink_g.vp['name']))
@@ -410,7 +431,8 @@ def load_centralities(
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        -------
             centralities: dict containing as key all the different centralities, and as value the list of the centrality measure for all the papers in hyperlink_g with the same ordering as ordered_paper_ids (dict of str:list)
     '''
     try:
@@ -440,7 +462,8 @@ def compute_centralities(
     '''
         Compute all centralities on hyperlink_g. These are: citations_overall, in_degree, out_degree, betweenness, closeness, pagerank, katz.
         
-        Args:
+        Paramaters
+        ----------
             all_docs_dict: dictionary with id of paper as key and a dict with all the info as value (dict of dicts)
             citations_df: pd.DataFrame with columns 'from','to', and each row represents a directed link (pd.DataFrame)
             ordered_paper_ids: ordered list of paper_ids in hyperlink_g, with the same ordering as hyperlink_g.vp['name'] (list of str, i.e., list(hyperlink_g.vp['name']))
@@ -448,7 +471,8 @@ def compute_centralities(
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        -------
             centralities: dict containing as key all the different centralities, and as value the list of the centrality measure for all the papers in hyperlink_g with the same ordering as ordered_paper_ids (dict of str:list)
     '''
     centralities = {}
