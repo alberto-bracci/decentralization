@@ -129,7 +129,7 @@ def get_highest_level_hsbm_partitions_from_iterations(
                     with gzip.open(os.path.join(dir_,f'results_fit_greedy.pkl.gz'),'rb') as fp:
                         tmp_hyperlink_text_hsbm_states,time_duration = pickle.load(fp)
                     print(f'Loaded states from {dir_}', flush=True)
-                    tmp_hyperlink_text_hsbm_partitions, tmp_levels = get_hsbm_partitions(
+                    tmp_hyperlink_text_hsbm_partitions, tmp_levels = get_hsbm_highest_level_partitions(
                         hyperlink_g, 
                         tmp_hyperlink_text_hsbm_states
                     )
@@ -597,7 +597,8 @@ def get_consensus(
                 sum_col = tmp_sum[0,col]
                 n_dbw[row,col] = n_wb[row,col] / sum_col
             p_w_tw = n_wb.T
-
+            
+            # Collect statistics in dict
             h_t_consensus_summary_by_level[l] = {}
             h_t_consensus_summary_by_level[l]['Bd'] = B_d # Number of document groups
             h_t_consensus_summary_by_level[l]['Bw'] = B_w # Number of word groups
@@ -636,12 +637,15 @@ def get_hierarchy(
     '''
     # Recover Hierarchy
     try:
+        # Try to load if already done
+        # ACHTUNG: if you want to calculate it again, you have to remove it (if already done)
         with gzip.open(f'{results_folder}results_fit_greedy_topic_hierarchy_all{filter_label}.pkl.gz','rb') as fp:
-            h_t_doc_consensus_by_level, h_t_word_consensus_by_level, h_t_consensus_summary_by_level = pickle.load(fp)
-        print('Loaded consensus from file', flush=True)
+            hierarchy_docs,hierarchy_words = pickle.load(fp)
+        print('Loaded hierarchy from file', flush=True)
     except FileNotFoundError:
         print('Recovering hierarchy')
         hierarchy_docs, hierarchy_words = {}, {}
+        # Compute hierarchy
         for l in range(highest_non_trivial_level,0,-1):
             tmp1_docs, tmp2_docs = h_t_doc_consensus_by_level[l], h_t_doc_consensus_by_level[l-1]
             tmp1_words, tmp2_words = h_t_word_consensus_by_level[l], h_t_word_consensus_by_level[l-1]
@@ -651,7 +655,7 @@ def get_hierarchy(
                 hierarchy_docs[l][tmp1_docs[i]].add(tmp2_docs[i])
             for i in range(len(tmp1_words)):
                 hierarchy_words[l][tmp1_words[i]].add(tmp2_words[i])
-
+        
         try:
             # Add higher layer of hierarchy words so that we have a unique root
             hierarchy_words[highest_non_trivial_level+1] = {0:set(list(hierarchy_words[highest_non_trivial_level].keys()))}

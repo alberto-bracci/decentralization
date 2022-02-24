@@ -355,7 +355,7 @@ def filter_dataset(
 
     print(f'number of word-document links: {np.sum([len(set(x)) for x in edited_text])}',flush=True)
 
-    return (ordered_papers_with_cits, new_filtered_words, results_folder, IDs, texts, edited_text)
+    return (ordered_papers_with_cits, new_filtered_words, IDs, texts, edited_text)
 
 
 def create_hyperlink_g(

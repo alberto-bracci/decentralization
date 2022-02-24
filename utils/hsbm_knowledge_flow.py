@@ -487,7 +487,7 @@ def run_knowledge_flow_analysis(
 
         # count citations between clusters and between different times
         # citation_count_per_cluster_in_time = {partition: {partition: {year: {year: 0 for year in years_with_none} for year in years_with_none} for partition in all_clusters} for partition in all_clusters}
-        with gzip.open(dataset_path + '../' +'no_papers_in_clusters_by_year.pkl.gz','rb') as fp:
+        with gzip.open(dataset_path + '../' +'no_papers_in_fields_by_year.pkl.gz','rb') as fp:
             papers_per_year_per_cluster = pickle.load(fp)
 
         years = sorted([x for x in papers_per_year_per_cluster.keys() if x is not None and x > 1500])
