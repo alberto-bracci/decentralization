@@ -1,10 +1,10 @@
 #!/bin/bash
 #$ -cwd  
-#$ -t 1-20
+#$ -t 1-100
 #$ -j y    
 #$ -pe smp 1
-#$ -l h_vmem=400G
-#$ -l highmem
+#$ -l h_vmem=100G # covid required ~ 52GB
+# #$ -l highmem
 #$ -l h_rt=240:0:0  
 # #$ -m bae
 
@@ -14,19 +14,8 @@ conda activate gt
 cd ../scripts
 
 python hsbm.py --dataset_path "data/2022-01-01/decentralization/"  --do_analysis 0  -i ${SGE_TASK_ID} --stop_at_fit 1
-# python hsbm.py --dataset_path "data/2021-09-01/decentralization/"  --do_analysis 1 -id_list "[1,2,3,4,5,6,7,8,9,10]"
 
+# Keywords: decentralization, covid, social_media, internet, wireless
+
+# If you want to submit a job to wait for the previous one to finish you can do so as follows:
 # qsub -hold_jid 500 job_two.sh ### where 500 is the id of the previous job to finish
-
-
-# qlogin
-# source source
-# conda activate gt
-# Latora
-# cd decentralization/github/scripts
-# rm -r /data/Maths-LatoraLab/GDB/decentralization/github/data/2021-09-01/sample_test/0_min_inCitations_5_min_word_occurrences_titles
-# python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 1
-# python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 2
-# python hsbm.py --dataset_path "data/2021-09-01/sample_test/"  -NoIterMC 10 --do_analysis 0  -i 3
-# python hsbm.py --dataset_path "data/2021-09-01/sample_test/" -NoIterMC 10 -analysis 1 -id_list "[1,2,3]"
-
