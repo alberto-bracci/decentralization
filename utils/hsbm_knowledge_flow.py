@@ -4,6 +4,7 @@ import gzip
 import pickle
 import pandas as pd
 import numpy as np
+from datetime import datetime
 import os
 
 def assign_partition(
@@ -31,8 +32,6 @@ def assign_partition(
     for i,name in enumerate(hyperlink_g.vp['name']):
         name2partition[name] = h_t_doc_consensus_by_level[gt_partition_level][i]
     paper_ids_with_partition = set(name2partition.keys())
-    
-    print('Assigning partition in all_docs_docs')
 
     for paper_id in all_docs_dict:
         if paper_id in paper_ids_with_partition:
@@ -133,18 +132,18 @@ def count_knowledge_units_per_cluster_in_time(
         citing_papers = paper1['inCitations']
         for paper2_id in set(citing_papers).intersection(all_papers_ids):
             paper2 = all_docs_dict[paper2_id]
-            clusters1 = paper1['assigned_cluster_list']
-            clusters2 = paper2['assigned_cluster_list']
-            if len(clusters1)>0 and len(clusters2)>0:
-                for partition1 in clusters1:
-                    for partition2 in clusters2:
+            cluster_list_1 = paper1['assigned_cluster_list']
+            cluster_list_2 = paper2['assigned_cluster_list']
+            if len(cluster_list_1)>0 and len(cluster_list_2)>0:
+                for cluster_1 in cluster_list_1:
+                    for cluster_2 in cluster_list_2:
                         year1 = paper1['year']
                         year2 = paper2['year']
                         if year1 is not None and year2 is not None:
                             # paper2 cites paper1 
-                            # so citation_count_per_cluster_in_time is ordered like partition_from - partition_to - year_from - year_to
+                            # so citation_count_per_cluster_in_time is ordered like cluster_from - cluster_to - year_from - year_to
                             # ordered like knowledge_units_count_per_cluster_in_time_dict[cited_cluster][citing_cluster][cited_year][citing_year]
-                            knowledge_units_count_per_cluster_in_time_dict[partition1][partition2][year1][year2] += (1/len(clusters1))*(1/len(clusters2))
+                            knowledge_units_count_per_cluster_in_time_dict[cluster_1][cluster_2][year1][year2] += (1/len(cluster_list_1))*(1/len(cluster_list_2))
     with gzip.open(os.path.join(results_folder, f'knowledge_units_count_per_cluster_in_time_dict_{partition_used}.pkl.gz'),'wb') as fp:
         pickle.dump(knowledge_units_count_per_cluster_in_time_dict,fp)
     # Now calculate cluster_units coming from a cluster and a year to all other clusters and years
@@ -160,6 +159,7 @@ def count_knowledge_units_per_cluster_in_time(
 
 def normalize_citations_count(
     all_clusters,
+    papers_existence_set,
     citing_cluster,
     cited_cluster,
     citing_year,
@@ -173,6 +173,7 @@ def normalize_citations_count(
         
         Args:
             all_clusters: sorted list of all the clusters names in the considered partition (list of str)
+            papers_existence_set: set of tuples created by create_papers_existence_set (set of tuples (partition, year))
             citing_cluster: ID of the citing cluster (int)
             cited_cluster: ID of the cited cluster (int)
             citing_year: citing year (int)
@@ -185,9 +186,12 @@ def normalize_citations_count(
             float:
     '''
     # fraction of knowledge units received by citing cluster in citing_year from cited cluster in cited years over all knowledge units received by citing cluster in citing years
-    numerator = knowledge_units_count_per_cluster_in_time_dict[cited_cluster][citing_cluster][cited_year][citing_year]/np.sum([knowledge_units_count_per_cluster_in_time_dict[x][citing_cluster][cited_year][citing_year] for x in knowledge_units_count_per_cluster_in_time_dict.keys()])
+    tmp_size_numerator = np.sum([knowledge_units_count_per_cluster_in_time_dict[cluster][citing_cluster][cited_year][citing_year] for cluster in knowledge_units_count_per_cluster_in_time_dict.keys() if check_papers_existence(cluster,cited_year,papers_existence_set)])
+    if tmp_size_numerator == 0:
+        return 0
+    numerator = knowledge_units_count_per_cluster_in_time_dict[cited_cluster][citing_cluster][cited_year][citing_year]/tmp_size_numerator
     # fraction of papers produced by cited cluster in cited year over all papers produced in cited years
-    denominator = cluster_units_per_year_dict[cited_year][cited_cluster]/np.sum([cluster_units_per_year_dict[cited_year][cluster]for cluster in all_clusters])
+    denominator = cluster_units_per_year_dict[cited_year][cited_cluster]/np.sum([cluster_units_per_year_dict[cited_year][cluster] for cluster in all_clusters if check_papers_existence(cluster,cited_year,papers_existence_set)])
     return numerator/denominator if denominator>0 and pd.notna(numerator) else 0
 
 
@@ -229,11 +233,12 @@ def compute_knowledge_flow_normalized_per_cluster_in_time_dict(
                 if not check_papers_existence(cited_cluster,cited_year,papers_existence_set):
                     continue
                 for citing_year in years_with_none - {None}:
-                    if citing_year < cited_year and not check_papers_existence(citing_cluster,citing_year,papers_existence_set):
+                    if citing_year < cited_year or not check_papers_existence(citing_cluster,citing_year,papers_existence_set):
                         continue
                     knowledge_flow_normalized_per_cluster_in_time_dict[cited_cluster][citing_cluster][cited_year][citing_year] = \
                         normalize_citations_count(
                             all_clusters,
+                            papers_existence_set,
                             citing_cluster,
                             cited_cluster,
                             citing_year,
@@ -355,7 +360,7 @@ def compute_knowledge_flow_normalized_per_cluster_per_time_window(
 
         knowledge_flow_normalized_per_cluster_in_time_df['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
 
-        bins = range(last_year,first_year,-time_window_size)
+        bins = range(last_year,first_year,-time_window_size)[::-1]
         knowledge_flow_normalized_per_cluster_in_time_df[f'time_window_{time_window_size}_years_from'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time_df.year_from, bins = bins, labels = bins[:-1]) 
         knowledge_flow_normalized_per_cluster_in_time_df[f'time_window_{time_window_size}_years_to'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time_df.year_to, bins = bins, labels = bins[:-1]) 
 
@@ -398,10 +403,10 @@ def compute_knowledge_flow_normalized_per_cluster_per_time_window_to_future(
 
         knowledge_flow_normalized_per_cluster_in_time_df['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
 
-        bins = range(last_year,first_year,-time_window_size)
+        bins = range(last_year,first_year,-time_window_size)[::-1]
         knowledge_flow_normalized_per_cluster_in_time_df[f'time_window_{time_window_size}_years_from'] = pd.cut(knowledge_flow_normalized_per_cluster_in_time_df.year_from,bins = bins, labels = bins[:-1]) 
 
-        knowledge_flow_normalized_per_cluster_per_time_window_to_future[time_window_size] = knowledge_flow_normalized_per_cluster_in_time_df.groupby(['cluster_from','cluster_to',f'time_window_{time_window}_years_from'],as_index=False).significant_kf.mean()
+        knowledge_flow_normalized_per_cluster_per_time_window_to_future[time_window_size] = knowledge_flow_normalized_per_cluster_in_time_df.groupby(['cluster_from','cluster_to',f'time_window_{time_window_size}_years_from'],as_index=False).significant_kf.mean()
     
     with gzip.open(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_per_time_window_to_future_df_{partition_used}.pkl.gz'),'wb') as fp:
         pickle.dump(knowledge_flow_normalized_per_cluster_per_time_window_to_future,fp)
@@ -472,9 +477,11 @@ def run_knowledge_flow_analysis(
     paper2cluster = {x['id']:x['clustersOfStudy'] for x in all_docs_dict.values() if 'id' in x and 'clustersOfStudy' in x}
 
     for gt_partition_level in range(lowest_level_knowledge_flow,highest_non_trivial_level + 1):
-        print(f'level {gt_partition_level}')
+        start = datetime.now()
+        print(f'level {gt_partition_level}', flush = True)
         
         # Load the correct partitions in the key 'assigned_cluster_list' for each paper
+        print('\tAssigning partition in all_docs_docs', flush = True)
         partition_used = 'gt_partition_lev_%d'%(gt_partition_level)
         assigned_cluster_dict, all_clusters = \
             assign_partition(
@@ -494,7 +501,8 @@ def run_knowledge_flow_analysis(
         years_with_none = set([x['year'] for x in all_docs_dict.values()])
         all_papers_ids = set([x['id'] for x in all_docs_dict.values()])
 
-
+        
+        print('\tCounting knowledge units per cluster in time', flush=True)
         knowledge_units_count_per_cluster_in_time_dict, cluster_units_per_year_dict = \
             count_knowledge_units_per_cluster_in_time(
                 all_clusters,
@@ -505,6 +513,7 @@ def run_knowledge_flow_analysis(
                 partition_used,
             )
 
+        print('Creating df with normalized knowledge flow per cluster in time', flush=True)
         knowledge_flow_normalized_per_cluster_in_time_df = \
             compute_knowledge_flow_normalized_per_cluster_in_time_df(
                 all_clusters,
@@ -517,6 +526,7 @@ def run_knowledge_flow_analysis(
                 partition_used
             )
 
+        print('\tCalculating normalized knowledge flow per cluster per time window', flush=True)
         knowledge_flow_normalized_per_cluster_per_time_window = \
             compute_knowledge_flow_normalized_per_cluster_per_time_window(
                 results_folder,
@@ -527,7 +537,8 @@ def run_knowledge_flow_analysis(
                 time_window_size_range = time_window_size_range,
                 significance_threshold = significance_threshold
             )
-
+        
+        print('\tCalculating normalized knowledge flow per cluster per time window to future', flush=True)
         knowledge_flow_normalized_per_cluster_per_time_window_to_future = \
             compute_knowledge_flow_normalized_per_cluster_per_time_window_to_future(
                 results_folder,
@@ -539,6 +550,7 @@ def run_knowledge_flow_analysis(
                 significance_threshold = significance_threshold
             )
 
+        print('\tCalculating normalized knowledge flow per cluster per year to future', flush=True)
         knowledge_flow_normalized_per_cluster_in_time_to_future = \
             compute_knowledge_flow_normalized_per_cluster_in_time_to_future(
                 results_folder,
@@ -546,5 +558,7 @@ def run_knowledge_flow_analysis(
                 knowledge_flow_normalized_per_cluster_in_time_df,
                 significance_threshold = significance_threshold
             )
-
+        
+        end = datetime.now()
+        print(f'\tFinished level {gt_partition_level} after {end - start}, flush = True')
     return None
