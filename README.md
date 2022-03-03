@@ -3,6 +3,14 @@
 ## Description
 
 ## Installation
+1. Clone this directory to your computer in a new folder, using the following command:
+```
+git clone https://github.com/alberto-bracci/decentralization
+```
+2. In order to ensure that everything is working as intended, create a dedicated environment using the specified requirements file, using: 
+```conda env create -f decentralization.yml```
+ACHTUNG: If you want to specify a specific install path rather than the default for your system, just use the -p flag followed by the required path, e.g.: 
+```conda env create -f decentralization.yml -p /home/user/anaconda3/envs/decentralization```
 
 ## Collect the data
 For this project, we use one of the releases of the Semantic Scholar Corpus.
@@ -21,7 +29,7 @@ wget https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/open-corpus/2022-
 wget -B https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/open-corpus/2022-01-01/ -i manifest.txt
 ```
 
-After this, selected the keywords you want to use to create your dataset, run the following notebook:
+After this, selected the keywords you want to use to create your dataset, open and run the following Jupyter notebook:
 ```
 ./notebooks/dataset_creation.ipynb
 ```
@@ -30,11 +38,7 @@ After this, selected the keywords you want to use to create your dataset, run th
 
 
 ## TODO list
-1. ~add docstrings to functions in hsbm_creation.py~
-1. go through all functions in hsbm_fit.py in detail
-1. go through all functions in hsbm_partitions.py in detail
-1. ~clean edited_texts part in hsbm.py~
-1. go through all analysis part in hsbm.py
-1. go through notebook semschol_graph_tool_analysis for plots/analysis
-1. script cartella da dare da shell, non in script
-1. dividere fit, equilibrate e analisi, uno in fila all'altro. 
+1. Go through notebooks/paper_analysis.ipynb, cut all unnecessary cells and move functions in new util
+1. Add requirements file decentralization.yml
+1. Update hsbm_equilibrate.sh and hsbm_consensus.sh
+1. Add disc and running_time-memory requirements
