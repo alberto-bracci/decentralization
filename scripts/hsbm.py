@@ -35,8 +35,9 @@ import argparse
 parser = argparse.ArgumentParser(description='Filtering the documents and creating the GT network.')
 
 parser.add_argument('-data', '--dataset_path', type=str,
-    help='Path to the whole dataset with respect to the repo root folder, e.g. "data/2021-09-01/decentralization/" (do NOT start with "/" and DO end with "/") [REQUIRED]',
-    required=True)
+    help='Path to the whole dataset with respect to the repo root folder, e.g. "data/2022-01-01/decentralization/" (do NOT start with "/" and DO end with "/") [REQUIRED]',
+#     required=True)
+    default="data/2022-01-01/decentralization/")
 parser.add_argument('-analysis_results_subfolder', '--analysis_results_subfolder', type=str,
     help='If not changed, if do_analysis==0 it is set automatically to the iteration subfolder, while if do_analysis==1 it is the same as dataset_path.\
             If instead it is provided, it creates a subfolder inside results_folder in which to save the results (specific iterations loaded from dataset_path)',
@@ -389,13 +390,14 @@ run_knowledge_flow_analysis(
     all_docs_dict = all_docs_dict,
     h_t_doc_consensus_by_level = h_t_doc_consensus_by_level,
     hyperlink_g = hyperlink_g,
-    ordered_paper_ids = ordered_paper_ids,
     lowest_level_knowledge_flow = lowest_level_knowledge_flow,
     highest_non_trivial_level = highest_non_trivial_level,
     dataset_path = dataset_path,
-    results_folder = results_folder,
-    last_year = 2021,
-    first_year = 1962,
+    results_folder = results_folder + analysis_results_subfolder,
+    last_year = 2022,
+    first_year = 1952,
+    time_window_size_range = [5,10],
+    significance_threshold = 1,
 )
 
 end = datetime.now()
