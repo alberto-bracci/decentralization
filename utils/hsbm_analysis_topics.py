@@ -98,7 +98,11 @@ def topic_mixture_proportion(
         mixture_proportion[f'doc_group {doc_group}'] = {}
         for topic in topics:
             # Calculate mixture proportion
-            mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = n_i_t[topic][doc_group] / np.sum([n_i_t[topic_j][doc_group] for topic_j in topics])
+            tmp_sum = np.sum([n_i_t[topic_j][doc_group] for topic_j in topics])
+            if tmp_sum == 0:
+                mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = 0
+            else:
+                mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = n_i_t[topic][doc_group] / tmp_sum
 
     # calculate total frequency of words in the clusters
     S = np.sum([n_i_t[topic_j][doc_group] for doc_group in partitions for topic_j in topics])
@@ -110,7 +114,10 @@ def topic_mixture_proportion(
         normalized_mixture_proportion[f'doc_group {doc_group}'] = {}
         for topic in topics:
             # Calculate normalized mixture proportion
-            normalized_mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = ( mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] - avg_topic_frequency[f'topic {topic}'] ) / avg_topic_frequency[f'topic {topic}']
+            if avg_topic_frequency[f'topic {topic}'] == 0:
+                normalized_mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = 0
+            else:
+                normalized_mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] = ( mixture_proportion[f'doc_group {doc_group}'][f'topic {topic}'] - avg_topic_frequency[f'topic {topic}'] ) / avg_topic_frequency[f'topic {topic}']
 
     return (mixture_proportion, normalized_mixture_proportion, avg_topic_frequency)
 
