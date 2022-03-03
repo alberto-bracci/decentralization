@@ -582,7 +582,7 @@ def run_knowledge_flow_analysis(
                 partition_used,
             )
 
-        print('Creating df with normalized knowledge flow per cluster in time', flush=True)
+        print('\tCreating df with normalized knowledge flow per cluster in time', flush=True)
         knowledge_flow_normalized_per_cluster_in_time_df = \
             compute_knowledge_flow_normalized_per_cluster_in_time_df(
                 all_clusters,
