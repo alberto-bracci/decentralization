@@ -15,12 +15,14 @@ def get_topics_consensus_model(
     '''
         Retrieve topics in consensus partition for hsbm model.
         
-        Args:
+        Paramaters
+        ----------
             consensus_summary: summary of the consensus partition at a certain level, with info about the blocks and the topic proportions, see hsbm_partitions.get_consensus() (dict)
             words: ordered list of words in the hyperlink network (list)
             n: number of words for each topic
         
-        Returns:
+        Returns
+        ----------
             dict_group_words: dict of topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:[(word,p_w)]})
     '''
     Bw = consensus_summary['Bw'] # number of word-groups
@@ -51,13 +53,14 @@ def topic_mixture_proportion(
         to see how much more (or less) that topic is present in the cluster with respect to the others.
         Also calculates the average topic frequency among all clusters.
         
-        
-        Args:
+        Paramaters
+        ----------
             dict_groups: dict of topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:[(word,p_w)]})
             edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
             document_partitions: 1D array long as the number of docs, where for each doc the value is the cluster the doc belongs to (array)
         
-        Returns:
+        Returns
+        ----------
             mixture_proportion: nested dict where for each cluster of docs and topic the mixture proportion is stored (nested dict {str:{str:float}})
             normalized_mixture_proportion: nested dict where for each cluster of docs and topic the normalized mixture proportion is stored (nested dict {str:{str:float}})
             avg_topic_frequency: dict where for each topic the average frequency among all clusters is stored (dict {str:float})
@@ -120,12 +123,14 @@ def get_topics(
     '''
         Get the words, important words, and a DataFrame representation of each topic and its important words, in each level.
         
-        Args:
+        Paramaters
+        ----------
             dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
             h_t_consensus_summary_by_level: summary of the consensus partition at a certain level, with info about the blocks and the topic proportions, see hsbm_partitions.get_consensus() (dict)
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
         
-        Returns:
+        Returns
+        ----------
             g_words: ordered list of words in the hyperlink network (list)
             dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
             topics_df_by_level: dict with level:DataFrame with the important words for each topic (dict {int:pd.DataFrame})
@@ -177,7 +182,8 @@ def get_mixture_proportion(
     '''
         Load or compute mixture proportion measures between topics and clusters at the same level on the hsbm.
         
-        Args:
+        Paramaters
+        ----------
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
             dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
             ordered_edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
@@ -185,7 +191,8 @@ def get_mixture_proportion(
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        ----------
             mixture_proportion_by_level: nested dict where, at each level, for each cluster of docs and topic the mixture proportion is stored (nested dict {int:{str:{str:float}}})
             normalized_mixture_proportion_by_level: nested dict where, at each level, for each cluster of docs and topic the normalized mixture proportion is stored (nested dict {int:{str:{str:float}}})
             avg_topic_frequency_by_level: dict where, at each level, for each topic the average frequency among all clusters is stored (dict {int:{str:float}})
@@ -218,7 +225,8 @@ def get_mixture_proportion_by_level(
     '''
         Load or compute mixture proportion measures between topics and clusters across different levels between clusters of docs and topics of words.
         
-        Args:
+        Paramaters
+        ----------
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
             dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
             ordered_edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
@@ -227,7 +235,8 @@ def get_mixture_proportion_by_level(
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        ----------
             mixture_proportion_by_level_partition_by_level_topics: nested dict where, for each pair of level of cluster and level of topic, 
                 for each cluster of docs and topic the mixture proportion is stored (nested dict {int:{int{str:{str:float}}}})
             normalized_mixture_proportion_by_level_partition_by_level_topics: nested dict where, for each pair of level of cluster and level of topic, 

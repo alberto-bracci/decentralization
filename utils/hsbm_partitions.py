@@ -24,12 +24,14 @@ def find_highest_non_trivial_group(
     '''
         Find the highest level with more than just 1 group.
         
-        Args:
+        Paramaters
+        ----------
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
             num_levels: number of levels in the curr_hsbm (int)
             curr_hsbm: hierarchical stochastick block model to analyse (sbmmultilayer.sbmmultilayer)
         
-        Returns:
+        Returns
+        ----------
             doc_partitions: list with only one list made of the corresponding cluster (int) for each doc at the highest non trivial level (list of list)
             final_l: highest level with more than just 1 group (int)
     '''
@@ -66,11 +68,13 @@ def get_hsbm_highest_level_partitions(
     '''
         For each iteration provided, retrieve the partitions at their highest non trivial level.
 
-        Args:
+        Paramaters
+        ----------
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
             model_states: list of all the states, loaded from dir_list, of all iterations (list of hsbm.state)
 
-        Returns:
+        Returns
+        ----------
             model_partitions: list of lists of length the number of iterations used in the algorithm. Each sublist contains the positions of each node in the partition with highest non-trivial level (list of lists)
             levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
     '''
@@ -100,12 +104,14 @@ def get_highest_level_hsbm_partitions_from_iterations(
     '''
         For each iteration, retrieve the partitions at their highest non trivial level.
         
-        Args:
+        Paramaters
+        ----------
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
             dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
         
-        Returns:
+        Returns
+        ----------
             model_partitions: list of lists of length the number of iterations used in the algorithm. Each sublist contains the positions of each node in the partition with highest non-trivial level (list of lists)
             levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
     '''
@@ -160,13 +166,15 @@ def get_hsbm_partitions_from_iterations(
     '''
         Compute the consensus partition assigned to document nodes over all the iterations.
         
-        Args:
+        Paramaters
+        ----------
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
             dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
             levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             
-        Returns: 
+        Returns
+        ---------- 
             hyperlink_text_hsbm_partitions_by_level: dict of level:list (one for each iteration with that level) of lists, containing the group assignment of each text (dict)
             time_duration: datetime difference from start to finish of the function (datetime object)
     '''
@@ -237,13 +245,15 @@ def get_word_type_blocks(
         Retrieves the block assignment of word types for the model. 
         Results are lists because are intended to collect results from multiple iterations.
         
-        Args:
+        Paramaters
+        ----------
             h_t_state: state of the hsbm (hsbm.state)
             h_t_graph: graph of the hsbm (hsbm.g)
             level: level chosen to get the blocks (int)
             IDs: list of the unique paper IDs kept after filtering, used to create the hsbm (list of str)
         
-        Returns:
+        Returns
+        ----------
             partitions: list of list containing the positions of each node in the partition at the selected level of the state (list of list of ints)
             num_of_groups: list with the number of groups in the partition of the state at the selected level (list of int)
             entropies: list of entropy of the selected hsbm, representing the minimum description length of inferred state (list of float)
@@ -282,14 +292,16 @@ def get_hsbm_word_partitions_from_iterations(
     '''
         Get all word group assignments at all levels and for all hsbm iterations in dir_list.
         
-        Args:
+        Paramaters
+        ----------
             hyperlink_g: gt network containing all papers and their links, i.e., citations or hyperlinks (gt.Graph)
             dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
             levels: list of the highest non-trivial level for each iteration of the algorithm (list of ints)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             IDs: list of the unique paper IDs kept after filtering, used to create the hsbm (list of str)
         
-        Returns:
+        Returns
+        ----------
             H_T_word_hsbm_partitions_by_level: dict {level: [[partition[paper] for paper in papers] for i in iterations]} containing for each level the partition list of each iteration (dict)
             H_T_word_hsbm_num_groups_by_level: dict {level: [num_groups for iteration in iterations]} containing the number of groups in the partition of the iterations for each level (dict)
     '''
@@ -357,10 +369,12 @@ def get_consensus_nested_partition(
         If words are provided, the partition is of words (topics).
         If docs are provided, the partition is of docs (clusters).
         
-        Args:
+        Paramaters
+        ----------
             H_T_word_hsbm_partitions_by_level: dict {level: [[partition[paper] for paper in papers] for i in iterations]} containing for each level the partition list of each iteration (dict)
         
-        Returns:
+        Returns
+        ----------
             h_t_word_consensus_by_level: dict of level as key and an array of same length as H_T_word_hsbm_partitions_by_level with value the cluster of that element at that level on the computed consensus partition (dict, level:np.array)
     '''
     hierarchy_words_partitions = {}
@@ -417,7 +431,8 @@ def get_consensus(
     '''
         It calculates the nested consensus partition (reordered correctly), computes some statistics and summary. 
         
-        Args:
+        Paramaters
+        ----------
             dir_list: list of all the paths to the directories where all iterations results have been dumped (list of str, valid paths)
             hyperlink_text_hsbm_partitions_by_level: 
             H_T_word_hsbm_partitions_by_level: dict {level: [[partition[paper] for paper in papers] for i in iterations]} containing for each level the partition list of each iteration (dict)
@@ -425,7 +440,8 @@ def get_consensus(
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        ----------
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
             h_t_word_consensus_by_level: dict of level as key and an array of length the number of words in the hsbm with value the cluster at that level (dict, level:np.array)
             h_t_consensus_summary_by_level: dict in which for each level there are statistics on group membership of nodes from the inferred state. These keys are:
@@ -624,14 +640,16 @@ def get_hierarchy(
     '''
         Recovers the hierarchy of clusters, both docs and words, from the consensus partition at each level.
         
-        Args:
+        Paramaters
+        ----------
             highest_non_trivial_level: highest level of the hsbm consensus partition for which there are more than 1 groups (int)
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
             h_t_word_consensus_by_level: dict of level as key and an array of length the number of words in the hsbm with value the cluster at that level (dict, level:np.array)
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
             filter_label: possible label to use if a special filtering is applied (str)
         
-        Returns:
+        Returns
+        ----------
             hierarchy_docs: dict of dicts (by level), in which, each key is a doc-cluster in the current level and values is the set of doc-clusters under the key doc-cluster at one lower level (dict of dicts)
             hierarchy_words: dict of dicts (by level), in which, each key is a word-cluster in the current level and values is the set of word-clusters under the key word-cluster at one lower level (dict of dicts)
     '''

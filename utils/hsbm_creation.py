@@ -222,10 +222,10 @@ def load_filtered_papers_with_cits(
         citations_df, ordered_papers_with_cits = filter_papers_with_cits(all_docs_dict, papers_with_texts, results_folder, file_name_citations_df_no_filter, min_inCitations=min_inCitations)
         citations_df.to_csv(os.path.join(results_folder,file_name),index=False)
         
-    print('original number of articles',len(all_docs_dict),flush=True)
+    print('original number of docs',len(all_docs_dict),flush=True)
     print('original number of different words', len(set([item for sublist in tokenized_texts_dict.values() for item in sublist])),flush=True)
+    print('filtered number of docs', len(ordered_papers_with_cits),flush=True)
     print('filtered number of different words', len(set([item for sublist in [tokenized_texts_dict.get(x) for x in ordered_papers_with_cits] for item in sublist])),flush=True)
-    print('filtered number of papers', len(ordered_papers_with_cits),flush=True)
     
     return citations_df, ordered_papers_with_cits
 
@@ -318,7 +318,7 @@ def filter_dataset(
     '''
     # Load citations and ordered papers
     citations_df, ordered_papers_with_cits = load_filtered_papers_with_cits(all_docs_dict, tokenized_texts_dict, results_folder, min_inCitations=min_inCitations)
-    print(f'number of document-document links: {len(citations_df)}',flush=True)
+    print(f'number of doc-doc links: {len(citations_df)}',flush=True)
     # Filter words appearing in at least min_word_occurences of these articles
     # Count word occurrences in each doc
     to_count_words_in_doc_df = pd.DataFrame(data = {'paperId': ordered_papers_with_cits, 'word':[tokenized_texts_dict[x] for x in ordered_papers_with_cits]})
@@ -353,7 +353,7 @@ def filter_dataset(
                 pickle.dump((IDs,texts,edited_text),fp)
         print('Dumped edited texts')
 
-    print(f'number of word-document links: {np.sum([len(set(x)) for x in edited_text])}',flush=True)
+    print(f'number of word-doc links: {np.sum([len(set(x)) for x in edited_text])}',flush=True)
 
     return (ordered_papers_with_cits, new_filtered_words, IDs, texts, edited_text)
 

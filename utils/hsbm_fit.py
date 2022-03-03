@@ -29,7 +29,8 @@ def fit_hyperlink_text_hsbm(
         If stop_at_fit is True, it does only the fit and saves it in a temporary file, otherwise it does also the equilibrate.
         If the temporary file is present, it is loaded by default.
 
-        Args:
+        Paramaters
+        ----------
             edited_text: list of tokenized filtered texts of the filtered papers (list of lists of words)
             titles: list of IDs or titles to give as name of the docs (list of words)
             hyperlinks: list of tuples (node_1, node_2) representing links from node_1 to node_2 in the citation_layer of the model (list of tuples of two elements)
@@ -40,7 +41,8 @@ def fit_hyperlink_text_hsbm(
             stop_at_fit: if True, it stops the function before doing the equilibrate; if False, it continues with the equilibrate (bool)
             number_iterations_MC_equilibrate: number of iterations of markov chain montecarlo equilibrations to do (int)
         
-        Returns:
+        Returns
+        ----------
             if stop_at_fit == True:
                 None
             else:
@@ -96,11 +98,13 @@ def run_multiflip_greedy_hsbm(
     '''
         Run greedy merge-split on multilayer SBM, forcing number_iterations_MC_equilibrate iterations for the mcmc_equilibrate.
         
-        Args:
+        Paramaters
+        ----------
             hsbm_model: hierarchical stochastick block model to equilibrate (sbmmultilayer.sbmmultilayer)
             number_iterations_MC_equilibrate: number of iterations of markov chain montecarlo equilibrations to do (int)
         
-        Returns:
+        Returns
+        ----------
             hsbm_state: state associated to SBM at the end (sbmmultilayer.sbmmultilayer.state)
     '''
     S1 = hsbm_model.mdl
