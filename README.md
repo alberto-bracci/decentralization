@@ -38,7 +38,8 @@ After this, selected the keywords you want to use to create your dataset, open a
 
 
 ## TODO list
-1. Go through notebooks/paper_analysis.ipynb, cut all unnecessary cells and move functions in new util
+1. Go through notebooks/paper_analysis.ipynb, cut all unnecessary cells and move functions in new utils
+1. Reorder clusters in figures
 1. Add requirements file decentralization.yml
 1. Update hsbm_equilibrate.sh and hsbm_consensus.sh
 1. Add disc and running_time-memory requirements
