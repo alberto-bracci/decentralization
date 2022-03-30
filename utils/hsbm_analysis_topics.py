@@ -179,11 +179,11 @@ def get_topics(
 
 
 def get_mixture_proportion(
-    h_t_doc_consensus_by_level, 
-    dict_groups_by_level, 
-    ordered_edited_texts,
-    topics_df_by_level,
-    results_folder,
+    h_t_doc_consensus_by_level,
+    results_folder, 
+    ordered_edited_texts = None,
+    dict_groups_by_level = None,
+    topics_df_by_level = None,
     filter_label = ''
 ):
     '''
@@ -192,14 +192,18 @@ def get_mixture_proportion(
         Paramaters
         ----------
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
-            dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
-            ordered_edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
-            topics_df_by_level: dict with level:DataFrame with the important words for each topic (dict {int:pd.DataFrame})
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
+            ordered_edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
+                ACHTUNG: If this is None instead, then you can only load the files, but not compute the mixture proportion!
+            dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
+                ACHTUNG: If this is None instead, then you can only load the files, but not compute the mixture proportion!
+            topics_df_by_level: dict with level:DataFrame with the important words for each topic (dict {int:pd.DataFrame})
+                ACHTUNG: If this is None instead, then you can only load the files, but not compute the mixture proportion!
             filter_label: possible label to use if a special filtering is applied (str)
         
         Returns
         ----------
+            topics_df_by_level: dict with level:DataFrame with the important words for each topic (dict {int:pd.DataFrame})
             mixture_proportion_by_level: nested dict where, at each level, for each cluster of docs and topic the mixture proportion is stored (nested dict {int:{str:{str:float}}})
             normalized_mixture_proportion_by_level: nested dict where, at each level, for each cluster of docs and topic the normalized mixture proportion is stored (nested dict {int:{str:{str:float}}})
             avg_topic_frequency_by_level: dict where, at each level, for each topic the average frequency among all clusters is stored (dict {int:{str:float}})
@@ -208,8 +212,13 @@ def get_mixture_proportion(
         # Try to load
         with gzip.open(f'{results_folder}results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','rb') as fp:
             topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = pickle.load(fp)
+        print(f'Loaded mixture proportion from file', flush=True)
     except FileNotFoundError:
+        if topics_df_by_level is None or dict_groups_by_level is None or ordered_edited_texts is None:
+            print('ERROR: Argument topics_df_by_level not present, exiting!')
+            return (None, None, None, None)
         # Calculate it
+        print(f'Calculating mixture proportion...', flush=True)
         mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = {}, {}, {}
         for l in h_t_doc_consensus_by_level.keys():
             mixture_proportion_by_level[l], normalized_mixture_proportion_by_level[l], avg_topic_frequency_by_level[l] = \
@@ -217,16 +226,16 @@ def get_mixture_proportion(
         with gzip.open(f'{results_folder}results_fit_greedy_topic_frequency_all{filter_label}.pkl.gz','wb') as fp:
             pickle.dump((topics_df_by_level,mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level),fp)
     
-    return (mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level)
+    return (topics_df_by_level, mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level)
 
 
 def get_mixture_proportion_by_level(
     h_t_doc_consensus_by_level, 
-    dict_groups_by_level, 
-    ordered_edited_texts,
-    topics_df_by_level,
     highest_non_trivial_level,
     results_folder,
+    dict_groups_by_level = None, 
+    ordered_edited_texts = None,
+    topics_df_by_level = None,
     filter_label = ''
 ):
     '''
@@ -235,11 +244,14 @@ def get_mixture_proportion_by_level(
         Paramaters
         ----------
             h_t_doc_consensus_by_level: dict of level as key and an array of length the number of docs in the hsbm with value the cluster at that level (dict, level:np.array)
-            dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
-            ordered_edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
             highest_non_trivial_level: highest level of the hsbm consensus partition for which there are more than 1 groups (int)
-            topics_df_by_level: dict with level:DataFrame with the important words for each topic (dict {int:pd.DataFrame})
             results_folder: path to directory of the results_folder where to save tokenized_texts_dict (str, valid path)
+            dict_groups_by_level: dict of dicts (for each level) topic: list of n most important words according to the topic proportion in consensus_summary (dict {int:{int:[(word,p_w)]}})
+                ACHTUNG: If this is None instead, then you can only load the files, but not compute the mixture proportion!
+            ordered_edited_texts: list of the filtered texts, ordered with the same ordering of the doc network (list of lists)
+                ACHTUNG: If this is None instead, then you can only load the files, but not compute the mixture proportion!
+            topics_df_by_level: dict with level:DataFrame with the important words for each topic (dict {int:pd.DataFrame})
+                ACHTUNG: If this is None instead, then you can only load the files, but not compute the mixture proportion!
             filter_label: possible label to use if a special filtering is applied (str)
         
         Returns
@@ -255,8 +267,13 @@ def get_mixture_proportion_by_level(
         # Try to load it
         with gzip.open(os.path.join(results_folder, f'results_fit_greedy_topic_frequency_all_by_level_partition_by_level_topics{filter_label}_all.pkl.gz'),'rb') as fp:
             topics_df_by_level,mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = pickle.load(fp)
+        print(f'Loaded mixture proportion by level from file', flush=True)
     except FileNotFoundError:
+        if topics_df_by_level is None or dict_groups_by_level is None or ordered_edited_texts is None:
+            print('ERROR: Argument topics_df_by_level not present, exiting!')
+            return (None, None, None)
         # Calculate it
+        print(f'Calculating mixture proportion by level...', flush=True)
         mixture_proportion_by_level_partition_by_level_topics, normalized_mixture_proportion_by_level_partition_by_level_topics, avg_topic_frequency_by_level_partition_by_level_topics = {}, {}, {}
         for level_partition in range(highest_non_trivial_level + 1):
             # at each level for the docs
