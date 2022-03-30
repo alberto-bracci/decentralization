@@ -352,12 +352,12 @@ print('Time duration',end-start,flush=True)
 
 print('\nMixture proportion of topics in clusters of docs at the same level',flush=True)
 start = datetime.now()
-mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = get_mixture_proportion(
-    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level, 
-    dict_groups_by_level = dict_groups_by_level, 
+topics_df_by_level, mixture_proportion_by_level, normalized_mixture_proportion_by_level, avg_topic_frequency_by_level = get_mixture_proportion(
+    h_t_doc_consensus_by_level = h_t_doc_consensus_by_level,
+    results_folder = results_folder + analysis_results_subfolder, 
     ordered_edited_texts = ordered_edited_texts,
+    dict_groups_by_level = dict_groups_by_level, 
     topics_df_by_level = topics_df_by_level,
-    results_folder = results_folder + analysis_results_subfolder,
     filter_label = ''
 )
 end = datetime.now()
