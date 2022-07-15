@@ -479,7 +479,8 @@ def compute_knowledge_flow_normalized_per_cluster_in_time_to_future(
     results_folder,
     partition_used,
     knowledge_flow_normalized_per_cluster_in_time_df,
-    significance_threshold = 1
+    significance_threshold = 1,
+    dump = True
 ):
     '''
         Averages the knowledge flow from each year to all future years between clusters.
@@ -504,8 +505,9 @@ def compute_knowledge_flow_normalized_per_cluster_in_time_to_future(
     knowledge_flow_normalized_per_cluster_in_time_df['significant_kf'] = knowledge_flow_normalized_per_cluster_in_time_df.knowledge_flow > significance_threshold
     # Average the significant kf
     knowledge_flow_normalized_per_cluster_in_time_to_future = knowledge_flow_normalized_per_cluster_in_time_df.groupby(['cluster_from','cluster_to','year_from'],as_index=False).significant_kf.mean()
-    # Dump it
-    knowledge_flow_normalized_per_cluster_in_time_to_future.to_csv(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_in_time_to_future_df_{partition_used}.csv.gz'),index=False)
+    if dump:
+        # Dump it
+        knowledge_flow_normalized_per_cluster_in_time_to_future.to_csv(os.path.join(results_folder, f'knowledge_flow_normalized_per_cluster_in_time_to_future_df_{partition_used}.csv.gz'),index=False)
     
     return knowledge_flow_normalized_per_cluster_in_time_to_future
 
