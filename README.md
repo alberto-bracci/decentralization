@@ -1,5 +1,5 @@
 # The decentralized evolution of decentralization across fields: from Governance to Blockchain (by Gabriele Di Bona*, Alberto Bracci*, Nicola Perra, Vito Latora, and Andrea Baronchelli)
-\*gabriele-di-bona and @alberto-bracci contributed equally to this work
+\*[gabriele-di-bona](https://github.com/gabriele-di-bona) and [alberto-bracci](https://github.com/alberto-bracci/) contributed equally to this work
 
 ## Description
 
@@ -11,7 +11,7 @@ If you want to use any part of this code, you are more than welcome to do so, bu
 ```
 Di Bona, G., Bracci, A., Perra, N., Latora, V., & Baronchelli, A. (2022). The decentralized evolution of decentralization across fields: from Governance to Blockchain. arXiv preprint arXiv:2207.14260.
 ```
-, or using the following bibtex entry.
+or using the following bibtex entry.
 ```
 @article{dibona2022decentralization,
     title = {The decentralized evolution of decentralization across fields: from Governance to Blockchain},
@@ -41,12 +41,12 @@ ACHTUNG: If you want to specify a specific install path rather than the default 
 
 **WARNING**: this guide has been written in early January 2022. Since then, the Semantic Scholar website has changed, requesting to be authenticated to use these APIs. This section might hence not be fully updated. As of early August 2022, it seems like the present guide still works for the 2022-01-01 release.
 
-For this project, we use one of the releases of the Semantic Scholar Corpus.
+For this project, we use one of the releases of the Semantic Scholar Academic Graph dataset (S2AG).
 
 Download corpus from
-https://api.semanticscholar.org/corpus/download/
+https://api.semanticscholar.org/corpus/download/.
 
-Release used in the paper: 2022-01-01 release
+Release used in the paper: 2022-01-01 release.
 
 In order to download the selected release, from the root folder, run the following commands:
 
@@ -57,7 +57,7 @@ wget https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/open-corpus/2022-
 wget -B https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/open-corpus/2022-01-01/ -i manifest.txt
 ```
 
-**WARNING**: The downloaded corpus (made of 6000 zip files) weighs 192GB.
+**WARNING**: The downloaded corpus (made of 6000 zip files) weighs about 192GB.
 
 ## Create Dataset
 
@@ -71,14 +71,14 @@ The downloaded data is stored in subfolders of the created folder `./data`
 **WARNING**: For decentralization, the downloaded dataset weighs around 600MB.
 
 
-## Run hierarchical Stochastic Block Model (hSBM)
-In order to run the hSBM as described in the article, one needs to run a series of bash scripts, that launch python instances. These are:
+## Run multilayer hierarchical Stochastic Block Model (hSBM)
+In order to run the multilayer hSBM as described in the article, one needs to run a series of bash scripts, that launch python instances. These are:
 1. ```./bash_scripts/hsbm_prep.sh```
 1. ```./bash_scripts/hsbm_fit.sh```
 1. ```./bash_scripts/hsbm_equilibrate.sh```
 1. ```./bash_scripts/hsbm_consensus.sh```
 
-These bash scripts are written for the QMUL apocrita HPC cluster. Possibly, you can use a similar script for your cluster. If you instead need to run this on your local machine, then you can use these bash scripts as a reference for what you need to do (just look at the line `python ...`).
+These bash scripts are written for the QMUL apocrita HPC cluster, where all computations have been run. Possibly, you can use a similar script for your cluster. If you instead need to run this on your local machine, then you can use these bash scripts as a reference for what you need to do (just look at the line `python ...`).
 
 **WARNING**: The scripts are meant to be executed SEQUENTIALLY, i.e., one after the other. This means that first you need to run `hsbm_prep.sh`, then, after the previous is finished, you can launch `hsbm_fit.sh`, etc. 
 
