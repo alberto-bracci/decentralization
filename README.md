@@ -106,6 +106,8 @@ Notice that Figure 1 is partially created in the notebook, since it needs to be 
 
 Figure 4 instead is generated in R. In order to create it, one first needs to create the proper data in the related section in `./notebooks/figures.ipynb`. After this, one runs `./notebooks/r_plots.ipynb` with the files created in the python notebook. The generated figures are then visually modified in Inkscape to obtain the figures in the manuscript.
 
+Further notice that the maximum overlap and NMI between the single partitions of the 100 runs of the hSBM and the consensus partitions are computed separately using the script `./bash_scripts/overlap.sh`, using the python script in `./scripts/overlap.py`.
+
 
 ## Acknowledgements
 Thank you for the interest and for using this repository. If you need to contact us for any reason, please do not hesitate to send an email to g.dibona@qmul.ac.uk.
